@@ -8,6 +8,7 @@ const server = http.createServer(app);
 const io = new Server(server);
 
 app.use(express.static(__dirname));
+app.get('/admin', (_req, res) => res.sendFile(require('path').join(__dirname, 'admin.html')));
 
 let tiktokConnected = false;
 app.get('/healthz', (_req, res) => res.json({ ok: true, tiktokConnected, username: TIKTOK_USERNAME }));
