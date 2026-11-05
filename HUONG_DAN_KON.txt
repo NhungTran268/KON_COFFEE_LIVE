@@ -1,0 +1,107 @@
+HUONG DAN KON COFFEE LIVE
+========================
+
+1. CAC FILE QUAN TRONG
+
+- index.html: giao dien game KON COFFEE LIVE. Khong xoa hoac doi ten.
+- garden-bg.jpg: anh nen san vuon cafe.
+- server.js: may chu Node.js. Nhan su kien TikTok LIVE va gui du lieu ve game qua Socket.IO.
+- package.json: khai bao cac thu vien can thiet va lenh khoi dong server.
+- package-lock.json: khoa phien ban thu vien, nen giu lai.
+- render.yaml: cau hinh deploy tren Render.
+- scripts/: cac cong cu kiem tra ma nguon.
+- voice-helper/: chuong trinh ho tro giong Hoai My tren may tinh (neu ban nay co thu muc nay).
+
+Luu y: KON CO server. Neu chi mo index.html truc tiep, game co the hien giao dien nhung khong co Node server de lay du lieu TikTok LIVE. Khong tu y xoa server.js, package.json hoac doi cau truc thu muc.
+
+2. MO GAME ONLINE
+
+1) Mo Chrome va truy cap:
+   https://kon-coffee-live.onrender.com
+
+2) Day la ban game online. Neu Render dang ngu, lan truy cap dau co the cho mot chut de dich vu khoi dong.
+
+3) Khi LIVE, server ket noi tai khoan TikTok @kon.coffee va chuyen comment, like, gift, member vao game.
+
+4) Kiem tra server:
+   https://kon-coffee-live.onrender.com/healthz
+
+   "ok": true nghia la web server dang chay.
+   "tiktokConnected": true nghia la connector dang ket noi duoc phien LIVE.
+   Neu tiktokConnected false, hay kiem tra kenh @kon.coffee co dang LIVE cong khai khong va xem Logs tren Render.
+
+3. CHAY GAME TREN MAY TINH (KHI CAN CHAY LOCAL)
+
+Dieu kien: cai Node.js phien ban 20 tro len (theo package.json).
+
+1) Giai nen toan bo bo ma nguon vao mot thu muc, khong mo truc tiep trong file ZIP.
+2) Mo thu muc do.
+3) Bam vao thanh dia chi cua File Explorer, go cmd roi Enter.
+4) Trong cua so lenh, chay:
+   npm install
+5) Cho cai dat xong, chay:
+   npm start
+6) Mo Chrome:
+   http://localhost:3000
+
+Giu cua so lenh dang chay trong suot thoi gian choi local. Muon dung lai thi bam Ctrl + C.
+
+Neu chi can phat game online tu Render thi khong can chay npm tren may tinh.
+
+4. CAU HINH TIKTOK
+
+Tai khoan mac dinh trong server.js la @kon.coffee.
+Neu can doi tai khoan, tren Render vao Environment va dat bien:
+   TIKTOK_USERNAME = ten_tiktok_khong_co_dau_@
+
+Khong dua mat khau, cookie, token hoac file .env len GitHub.
+
+5. PHAT GAME LEN TIKTOK LIVE STUDIO / OBS
+
+- Neu dung ban online: them Browser Source va dan URL:
+  https://kon-coffee-live.onrender.com
+- Kich thuoc khung game: 1080 x 1920 (doc).
+- Bat am thanh cua Browser Source neu muon khan gia nghe nhac va giong doc.
+- Khong can them server.js thanh mot nguon hinh. Server chay o hau truong; nguon Browser chi mo trang game.
+
+6. CAC PHIM THU GAME
+
+- Phim 1: them khach thu.
+- Phim 2: thu combo 10 Hoa Hong.
+- Phim 3: day CHILL len 100%.
+- Phim V: bat / thu giong Viet.
+
+Luu y: phim thu chi de kiem tra hieu ung trong game, khong phai qua that tu TikTok.
+
+7. GIỌNG ĐỌC HOÀI MY
+
+Neu ban game dang su dung bo ho tro Edge TTS cuc bo:
+- Chay file voice-helper/start-hoaimy.bat tren may tinh Windows.
+- Giu cua so ho tro mo khi phat LIVE.
+- Mo game va bam BAT GIONG / NGHE THU.
+- May tinh phat LIVE phai chay bo ho tro nay; Render khong tu phat am thanh ra may tinh.
+- Can Internet va Python phu hop theo README trong voice-helper.
+- Day la giai phap TTS khong chinh thuc, phu thuoc kha nang truy cap dich vu Edge TTS; khong cam ket hoat dong lien tuc.
+
+8. CAP NHAT GAME
+
+- GitHub la noi luu ma nguon.
+- Render chay server va game online.
+- Khi push ma len nhanh main, Render chi tu cap nhat neu dich vu da bat Auto-Deploy cho nhanh main.
+- Sau moi lan cap nhat, vao Render > Events/Deploys kiem tra deploy thanh cong.
+- Thu lai /healthz va mo game bang Chrome.
+- Khong sua/xoa file tren main khi chua co ban sao luu.
+
+9. NEU GAME KHONG HOAT DONG
+
+- Trang khong mo: kiem tra Render Deploys co Live hay khong.
+- Game mo nhung khong nhan comment/qua: kiem tra TikTok dang LIVE va /healthz co tiktokConnected true khong; xem Logs tren Render.
+- Game chay local nhung khong co TikTok: kiem tra npm start da chay va tai khoan TikTok dang LIVE.
+- Khong nghe giong: kiem tra am thanh Browser Source, bam BAT GIONG; neu dung Edge TTS cuc bo thi kiem tra voice-helper dang chay.
+- Khong xoa server.js, package.json, package-lock.json hoac doi ten index.html.
+
+PHAN BIET 3 THANH PHAN
+- GAME (index.html + anh/tai nguyen): phan hinh anh va luat choi.
+- SERVER (server.js + Node.js): ket noi TikTok, Socket.IO, phuc vu game.
+- RENDER: may chu online chay server de game nhan duoc su kien LIVE.
+
