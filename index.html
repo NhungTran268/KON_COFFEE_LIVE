@@ -268,6 +268,8 @@
       radial-gradient(ellipse at 50% 82%, rgba(255,185,90,.18), transparent 35%),
       linear-gradient(180deg,rgba(0,0,0,.72),rgba(3,8,18,.78));
   }
+  #gameStage { filter: brightness(var(--kon-brightness, 1)); transition: filter 1.2s ease; }
+  #gameStage.decorations-off .ambient-overlay { background: transparent !important; }
   #gameStage.lights-off .signboard {
     box-shadow:0 0 18px rgba(255,190,90,.85),0 0 48px rgba(255,150,55,.38),inset 0 2px 8px rgba(255,220,160,.4);
   }
@@ -469,6 +471,26 @@
       lightsButton.classList.toggle('off', isOff);
       lightsButton.setAttribute('aria-pressed', String(isOff));
     });
+  }
+
+
+  // Apply Admin lighting settings to the LIVE canvas; state arrives from Render.
+  function applyAdminState(state) {
+    if (!state || !gameStage) return;
+    gameStage.classList.toggle('lights-off', state.lighting === 'lights-off' || state.lighting === 'night');
+    document.body.classList.toggle('sunset-mode', state.lighting === 'sunset');
+    gameStage.style.setProperty('--kon-brightness', String((Number(state.brightness) || 100) / 100));
+    gameStage.classList.toggle('decorations-off', state.decorations === false);
+    if (lightsButton) {
+      const off = state.lighting === 'lights-off' || state.lighting === 'night';
+      lightsButton.textContent = off ? '✨ BẬT ĐÈN' : '💡 TẮT ĐÈN';
+      lightsButton.classList.toggle('off', off);
+      lightsButton.setAttribute('aria-pressed', String(off));
+    }
+  }
+  if (typeof io !== 'undefined') {
+    const adminSyncSocket = io();
+    adminSyncSocket.on('admin:state', applyAdminState);
   }
 
   const VOICE_HELPER = 'http://127.0.0.1:8765';
