@@ -254,6 +254,27 @@
   .voice-control.secondary { font-size: 14px; padding: 9px 12px; }
   .voice-control.ready { border-color: #8fe3a1; color: #caffd3; }
   .voice-control.error { border-color: #ff9a9a; color: #ffd0d0; }
+  .lights-control {
+    border: 2px solid #ffd27a; border-radius: 24px;
+    background: linear-gradient(180deg,#60401f,#302014); color:#fff0c5;
+    padding:10px 15px; font:900 16px 'Nunito',sans-serif;
+    box-shadow:0 0 16px rgba(255,190,80,.32); cursor:pointer;
+  }
+  .lights-control.off { border-color:#91a6c8; color:#e0eaff; background:linear-gradient(180deg,#26364e,#111b2b); }
+  #gameStage.lights-off .ambient-overlay {
+    background:
+      radial-gradient(ellipse at 18% 44%, rgba(255,190,100,.30), transparent 27%),
+      radial-gradient(ellipse at 82% 44%, rgba(255,170,75,.24), transparent 25%),
+      radial-gradient(ellipse at 50% 82%, rgba(255,185,90,.18), transparent 35%),
+      linear-gradient(180deg,rgba(0,0,0,.72),rgba(3,8,18,.78));
+  }
+  #gameStage.lights-off .signboard {
+    box-shadow:0 0 18px rgba(255,190,90,.85),0 0 48px rgba(255,150,55,.38),inset 0 2px 8px rgba(255,220,160,.4);
+  }
+  #gameStage.lights-off .stat-box,
+  #gameStage.lights-off .panel-card {
+    box-shadow:0 0 18px rgba(255,170,75,.18), inset 0 0 16px rgba(255,185,95,.08);
+  }
   .voice-status {
     flex-basis: 100%; max-width: 520px; padding: 5px 10px; border-radius: 12px;
     color: #fff; background: rgba(20,15,10,.82); font-size: 13px;
@@ -311,6 +332,7 @@
 <div id="gameStage">
 
 <div class="voice-panel" aria-label="Điều khiển giọng đọc">
+  <button id="lightsButton" class="lights-control" type="button" aria-pressed="false">💡 TẮT ĐÈN</button>
   <button id="voiceButton" class="voice-control" type="button">🔊 BẬT GIỌNG</button>
   <button id="voiceTestButton" class="voice-control secondary" type="button">🎙️ NGHE THỬ</button>
   <button id="voiceStopButton" class="voice-control secondary" type="button">🔇 TẮT GIỌNG</button>
@@ -437,6 +459,18 @@
   }
 
   // Giọng đọc Hoài My chạy qua chương trình cục bộ trên máy OBS.
+  // Điều khiển ánh sáng không gian KON COFFEE trong LIVE.
+  const lightsButton = document.getElementById('lightsButton');
+  const gameStage = document.getElementById('gameStage');
+  if (lightsButton && gameStage) {
+    lightsButton.addEventListener('click', () => {
+      const isOff = gameStage.classList.toggle('lights-off');
+      lightsButton.textContent = isOff ? '✨ BẬT ĐÈN' : '💡 TẮT ĐÈN';
+      lightsButton.classList.toggle('off', isOff);
+      lightsButton.setAttribute('aria-pressed', String(isOff));
+    });
+  }
+
   const VOICE_HELPER = 'http://127.0.0.1:8765';
   let speechQueue = [];
   let speechUnlocked = false;
