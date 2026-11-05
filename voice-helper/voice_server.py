@@ -10,13 +10,16 @@ import edge_tts
 HOST = "127.0.0.1"
 PORT = 8765
 VOICE = "vi-VN-HoaiMyNeural"
-ALLOWED_ORIGIN = "https://kon-coffee-live.onrender.com"
+ALLOWED_ORIGINS = {
+    "https://kon-coffee-live.onrender.com",
+    "https://kon-coffee-live-1.onrender.com",
+}
 MAX_TEXT_LENGTH = 500
 
 class Handler(BaseHTTPRequestHandler):
     def _cors(self):
         origin = self.headers.get("Origin", "")
-        if origin in (ALLOWED_ORIGIN, "null"):
+        if origin in (*ALLOWED_ORIGINS, "null"):
             self.send_header("Access-Control-Allow-Origin", origin)
         self.send_header("Vary", "Origin")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
