@@ -1,0 +1,14 @@
+{
+  "name": "kon-coffee-live-game",
+  "version": "1.2.0",
+  "description": "KON COFFEE Kiot 10 Bãi Cháy TikTok LIVE garden mini game - 100 seats",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5",
+    "tiktok-live-connector": "^1.2.4"
+  }
+}

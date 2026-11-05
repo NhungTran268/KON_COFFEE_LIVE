@@ -1,0 +1,730 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<title>KON COFFEE - Kiot 10 Bãi Cháy Live Game</title>
+<script src="/socket.io/socket.io.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
+  body {
+    width: 1080px; height: 1920px; overflow: hidden;
+    font-family: 'Nunito', sans-serif;
+    background:
+      linear-gradient(180deg, rgba(18,22,18,.18), rgba(16,25,16,.32)),
+      url('garden-bg.jpg') center center / cover no-repeat;
+    background-color: #263d2b;
+    position: relative; color: #fff;
+    transition: filter 2s ease;
+  }
+  body.sunset-mode {
+    filter: sepia(0.25) saturate(1.4) hue-rotate(-10deg) brightness(0.95);
+  }
+  .ambient-overlay {
+    position: absolute; inset: 0; pointer-events: none; z-index: 2;
+    background: radial-gradient(circle at 50% 30%, rgba(255,190,100,0.12), rgba(15,10,5,0.45));
+    transition: background 2s ease;
+  }
+  body.sunset-mode .ambient-overlay {
+    background: linear-gradient(180deg, rgba(255,105,60,0.28) 0%, rgba(120,40,140,0.25) 50%, rgba(20,10,30,0.5) 100%);
+  }
+
+  .top-header {
+    position: relative; z-index: 10; padding: 28px 36px 0;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .signboard {
+    background: linear-gradient(180deg, #6e472b, #4a2e19);
+    border: 6px solid #d49b54; border-radius: 24px;
+    padding: 14px 48px; text-align: center;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.6), inset 0 2px 8px rgba(255,220,160,0.4);
+  }
+  .signboard h1 {
+    font-size: 54px; font-weight: 900; color: #ffe6b3;
+    text-shadow: 0 4px 0 #2c1606, 0 0 18px rgba(255,200,90,0.7);
+    letter-spacing: 2px;
+  }
+  .signboard p {
+    font-size: 23px; color: #ffd280; margin-top: 4px;
+  }
+
+  .stats-row {
+    display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;
+    width: 100%; margin-top: 16px;
+  }
+  .stat-box {
+    background: rgba(58, 37, 22, 0.88);
+    border: 3px solid #b8864c; border-radius: 16px;
+    padding: 8px 10px; text-align: center;
+    backdrop-filter: blur(6px);
+  }
+  .stat-box .label { font-size: 17px; color: #e2c094; }
+  .stat-box .val { font-size: 32px; font-weight: 900; color: #fff; margin-top: 2px; }
+
+  .sub-panels {
+    display: grid; grid-template-columns: 1.15fr 0.85fr; gap: 18px;
+    width: 100%; margin-top: 14px;
+  }
+  .panel-card {
+    background: rgba(45, 29, 18, 0.86);
+    border: 3px solid #a87943; border-radius: 18px;
+    padding: 12px 18px; backdrop-filter: blur(6px);
+  }
+  .panel-title {
+    font-size: 21px; font-weight: 900; color: #ffcf75; margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .menu-tags {
+    font-size: 20px; line-height: 1.45; color: #fff5e6;
+  }
+  .menu-tags span {
+    display: inline-block; background: rgba(255,255,255,0.12);
+    padding: 2px 10px; border-radius: 8px; margin: 2px 4px 2px 0;
+  }
+  .top-chill-list {
+    display: flex; gap: 12px; align-items: center; margin-top: 6px;
+  }
+  .vip-slot {
+    display: flex; flex-direction: column; align-items: center; width: 82px;
+  }
+  .vip-slot img {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 3px solid #ffd700; object-fit: cover; background: #553924;
+  }
+  .vip-slot span {
+    font-size: 15px; max-width: 80px; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; margin-top: 4px; color: #ffe7b8;
+  }
+  .vip-tag {
+    margin-top: 2px; padding: 2px 5px; border-radius: 8px;
+    background: linear-gradient(90deg,#f8d56a,#b77b22);
+    color: #42240b; font-size: 9px; font-weight: 900; letter-spacing: .4px;
+  }
+
+  .kiot-zone {
+    position: relative; z-index: 5; width: 100%; height: 310px;
+    margin-top: 4px; display: flex; flex-direction: column;
+    justify-content: flex-end; align-items: center;
+  }
+  .wait-queue {
+    position: absolute; bottom: 8px; right: 36px;
+    display: flex; gap: 10px; align-items: center;
+    background: rgba(35, 22, 12, 0.78); padding: 8px 16px;
+    border-radius: 30px; border: 2px solid #b58348;
+  }
+  .wait-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 2px solid #fff; object-fit: cover;
+  }
+
+  /* Sân vườn cafe: nền đá, bàn gỗ tròn và 100 vị trí khách */
+  .garden-grid {
+    position: relative; z-index: 6;
+    width: 100%; height: 1020px;
+    padding: 12px 34px 18px;
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    grid-template-rows: repeat(5, minmax(0, 1fr));
+    gap: 10px 8px;
+    background:
+      radial-gradient(ellipse at 50% 50%, rgba(39,65,39,.12), transparent 68%),
+      repeating-linear-gradient(0deg, rgba(235,211,170,.045) 0 2px, transparent 2px 34px),
+      repeating-linear-gradient(90deg, rgba(20,14,10,.06) 0 2px, transparent 2px 42px);
+  }
+  .wood-table {
+    position: relative;
+    width: min(100%, 142px); aspect-ratio: 1 / 1;
+    justify-self: center; align-self: center;
+    border: 5px solid #8c5a35; border-radius: 50%;
+    background:
+      radial-gradient(ellipse at 28% 22%, rgba(255,224,174,.38), transparent 34%),
+      repeating-linear-gradient(12deg, rgba(63,35,18,.12) 0 2px, transparent 2px 9px),
+      radial-gradient(circle at 38% 32%, #c28a54 0%, #95613a 48%, #603b26 100%);
+    box-shadow: 0 13px 19px rgba(0,0,0,.48), inset 0 3px 7px rgba(255,229,184,.34), inset 0 -8px 13px rgba(28,12,5,.42);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .wood-table::before {
+    content: ""; position: absolute; inset: -9px; border-radius: 50%;
+    border: 3px solid rgba(218,180,128,.34);
+    box-shadow: 0 4px 8px rgba(0,0,0,.22); pointer-events: none;
+  }
+  .wood-table::after {
+    content: ""; position: absolute; inset: 12px; border-radius: 50%;
+    border: 1px solid rgba(255,230,190,.28); pointer-events: none;
+  }
+  .wood-table:nth-child(5n + 1) { transform: translateY(8px) scale(.94); }
+  .wood-table:nth-child(5n + 2) { transform: translateY(-5px) scale(.98); }
+  .wood-table:nth-child(5n + 3) { transform: translateY(5px) scale(.96); }
+  .wood-table:nth-child(5n + 4) { transform: translateY(-7px) scale(.95); }
+  .wood-table:nth-child(5n) { transform: translateY(3px) scale(.97); }
+  .table-num {
+    position: relative; z-index: 1;
+    font-size: 19px; font-weight: 900; color: rgba(255,238,210,.72);
+    text-shadow: 0 2px 4px rgba(35,15,5,.65); pointer-events: none;
+  }
+  .seat {
+    position: absolute; width: 58px; height: 66px; z-index: 3;
+    display: flex; flex-direction: column; align-items: center;
+    justify-content: center; transition: transform .3s ease;
+  }
+  .seat-0 { top: -29px; left: calc(50% - 29px); }
+  .seat-1 { right: -29px; top: calc(50% - 33px); }
+  .seat-2 { bottom: -29px; left: calc(50% - 29px); }
+  .seat-3 { left: -29px; top: calc(50% - 33px); }
+
+  .chibi-guest {
+    display: flex; flex-direction: column; align-items: center;
+    animation: popIn 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  }
+  @keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .guest-avatar-wrap {
+    position: relative; width: 44px; height: 44px;
+  }
+  .guest-avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    border: 3px solid #ffe299; object-fit: cover;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.5); background: #3b2818;
+  }
+  .guest-name {
+    margin-top: 3px; font-size: 11px; font-weight: 900;
+    background: rgba(25, 15, 8, 0.85); color: #fff;
+    padding: 2px 8px; border-radius: 10px;
+    max-width: 72px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .speech-bubble {
+    position: absolute; top: -30px;
+    background: #fff; color: #2b180a; font-size: 11px; font-weight: 900;
+    padding: 3px 9px; border-radius: 12px; white-space: nowrap;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.35);
+    animation: floatUp 2.5s forwards;
+  }
+  @keyframes floatUp {
+    0% { opacity: 0; transform: translateY(6px); }
+    15% { opacity: 1; transform: translateY(0); }
+    85% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-8px); }
+  }
+
+  .bottom-bar {
+    position: absolute; bottom: 26px; left: 36px; right: 36px; z-index: 10;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .chill-meter-wrap {
+    width: 75%; margin: 0 auto;
+    background: rgba(40, 24, 14, 0.9);
+    border: 4px solid #e6b877; border-radius: 30px;
+    height: 50px; position: relative; overflow: hidden;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.5);
+  }
+  .chill-fill {
+    height: 100%; width: 35%;
+    background: linear-gradient(90deg, #ff9a2e, #ff512f, #dd2476);
+    border-radius: 26px; transition: width 0.4s ease;
+  }
+  .chill-label {
+    position: absolute; inset: 0; display: flex;
+    align-items: center; justify-content: center;
+    font-size: 24px; font-weight: 900; color: #fff;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+  }
+  .footer-cta {
+    background: rgba(42, 27, 16, 0.94);
+    border: 4px solid #c99355; border-radius: 22px;
+    padding: 14px 24px; text-align: center;
+    font-size: 25px; font-weight: 900; color: #ffe8bd;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.65);
+  }
+  .footer-cta strong { color: #ffbf3f; }
+
+  .bao-quan-modal {
+    position: absolute; top: 38%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.7);
+    width: 860px; padding: 38px 32px;
+    background: linear-gradient(180deg, #ffcf40 0%, #f5900d 100%);
+    border: 8px solid #fff3c4; border-radius: 36px;
+    box-shadow: 0 25px 60px rgba(0,0,0,0.8), 0 0 80px rgba(255,190,40,0.8);
+    text-align: center; z-index: 50; opacity: 0; pointer-events: none;
+    transition: all 0.35s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+  }
+  .bao-quan-modal.active {
+    opacity: 1; transform: translate(-50%, -50%) scale(1);
+  }
+  .bao-quan-avatar {
+    width: 120px; height: 120px; border-radius: 50%;
+    border: 6px solid #fff; object-fit: cover;
+    margin: -90px auto 12px; background: #4a2e19;
+    box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+  }
+  .bao-quan-title {
+    font-size: 32px; font-weight: 900; color: #4a2100; letter-spacing: 2px;
+  }
+  .bao-quan-user {
+    font-size: 56px; font-weight: 900; color: #fff;
+    text-shadow: 0 4px 10px rgba(120,40,0,0.8); margin: 6px 0;
+  }
+  .bao-quan-action {
+    font-size: 46px; font-weight: 900; color: #b80000;
+    text-shadow: 0 2px 0 #fff; margin-bottom: 12px;
+  }
+  .bao-quan-sub {
+    display: inline-block; background: #3b1c04; color: #ffd97d;
+    font-size: 24px; padding: 10px 28px; border-radius: 30px;
+  }
+</style>
+</head>
+<body>
+
+<div class="ambient-overlay"></div>
+
+<div class="top-header">
+  <div class="signboard">
+    <h1>KON COFFEE</h1>
+    <p>📍 KIOT 10 BỒ NÂU • BÃI CHÁY • CÁCH BIỂN 2 PHÚT</p>
+  </div>
+
+  <div class="stats-row">
+    <div class="stat-box">
+      <div class="label">ĐÃ GHÉ</div>
+      <div class="val" id="statServed">365</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">ĐANG NGỒI</div>
+      <div class="val"><span id="statSitting">0</span>/100</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">GIA CHỦ</div>
+      <div class="val" id="statDonors">0</div>
+    </div>
+    <div class="stat-box">
+      <div class="label">CHỜ BÀN</div>
+      <div class="val" id="statWaiting">0</div>
+    </div>
+  </div>
+
+  <div class="sub-panels">
+    <div class="panel-card">
+      <div class="panel-title">☕ Thực đơn FREE tại Live:</div>
+      <div class="menu-tags">
+        <span>Cà phê muối</span><span>Kon Coffee</span><span>Cold Brew</span>
+        <span>Sữa chua KON</span><span>Trà đào</span><span>Hướng dương</span>
+      </div>
+    </div>
+    <div class="panel-card">
+      <div class="panel-title">👑 BẢNG TOP GIA CHỦ CHILL</div>
+      <div class="top-chill-list" id="topDonorsList">
+        <div class="vip-slot"><span>Chưa có</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="kiot-zone">
+  <div class="wait-queue" id="waitQueueBox" style="display:none;">
+    <span style="font-size:18px; color:#ffd599;">Chờ bàn:</span>
+    <div id="waitAvatars" style="display:flex; gap:6px;"></div>
+  </div>
+</div>
+
+<div class="garden-grid" id="gardenGrid"></div>
+
+<div class="bottom-bar">
+  <div class="chill-meter-wrap">
+    <div class="chill-fill" id="chillFill"></div>
+    <div class="chill-label" id="chillLabel">🎵 CHILL 35% (Thả tim bật Hoàng Hôn Lofi)</div>
+  </div>
+  <div class="footer-cta" id="footerTicker">
+    Bình luận <strong>COFFEE / CHILL / BÀN 1-25</strong> để chọn chỗ ngồi • <strong>10 HOA HỒNG = BAO CẢ QUÁN!</strong>
+  </div>
+</div>
+
+<div class="bao-quan-modal" id="baoQuanModal">
+  <img src="" class="bao-quan-avatar" id="bqAvatar" alt="avatar">
+  <div class="bao-quan-title">👑 ĐẠI GIA CHILL 👑</div>
+  <div class="bao-quan-user" id="bqName">Nhung Trần</div>
+  <div class="bao-quan-action">BAO CẢ QUÁN!</div>
+  <div class="bao-quan-sub">Gia Chủ tặng 10 Hoa Hồng! Cả sân vườn KON cùng nhận quà Chill! 🌹✨</div>
+</div>
+
+<script>
+  const TOTAL_TABLES = 25;
+  const SEATS_PER_TABLE = 4;
+  const TOTAL_SEATS = TOTAL_TABLES * SEATS_PER_TABLE;
+  const AUTO_LEAVE_MS = 6 * 60 * 1000;
+
+  const seats = [];
+  const waitQueue = [];
+  const topDonors = {};
+  let totalServed = 365;
+  let chillPercent = 35;
+  const roseProgress = new Map();
+  const roseGiftIds = new Set([5655]);
+
+  const gardenGrid = document.getElementById('gardenGrid');
+  for (let t = 1; t <= TOTAL_TABLES; t++) {
+    const tableEl = document.createElement('div');
+    tableEl.className = 'wood-table';
+    tableEl.innerHTML = `<div class="table-num">Bàn ${t}</div>`;
+
+    for (let s = 0; s < SEATS_PER_TABLE; s++) {
+      const seatIndex = (t - 1) * SEATS_PER_TABLE + s;
+      const seatEl = document.createElement('div');
+      seatEl.className = `seat seat-${s}`;
+      seatEl.id = `seat-${seatIndex}`;
+      tableEl.appendChild(seatEl);
+
+      seats.push({
+        index: seatIndex,
+        tableNum: t,
+        user: null,
+        el: seatEl
+      });
+    }
+    gardenGrid.appendChild(tableEl);
+  }
+
+  function detectMenuItem(comment) {
+    const text = String(comment || '').toLocaleLowerCase('vi-VN');
+    if (text.includes('muoi') || text.includes('muối')) return { icon: '🧋', label: 'Cafe Muối!' };
+    if (text.includes('sua chua') || text.includes('sữa chua') || text.includes('kem')) return { icon: '🍨', label: 'Sữa chua KON!' };
+    if (text.includes('cold brew') || text.includes('cam')) return { icon: '🍹', label: 'Cold Brew!' };
+    if (text.includes('dao') || text.includes('đào') || text.includes('tra') || text.includes('trà')) return { icon: '🍑', label: 'Trà đào chill!' };
+    if (text.includes('huong duong') || text.includes('hướng dương') || text.includes('bo kho')) return { icon: '🌻', label: 'Cắn hướng dương!' };
+    if (text.includes('cafe') || text.includes('cà phê') || text.includes('coffee') || text.includes('kon') || text.includes('chill')) return { icon: '☕', label: 'Chill quá!' };
+    return null;
+  }
+
+  let vietnameseVoice = null;
+  let speechQueue = [];
+  function loadVietnameseVoice() {
+    if (!('speechSynthesis' in window)) return;
+    const voices = window.speechSynthesis.getVoices();
+    vietnameseVoice = voices.find(v => /^vi(-|_)?vn$/i.test(v.lang))
+      || voices.find(v => /^vi([_-]|$)/i.test(v.lang))
+      || null;
+    if (vietnameseVoice && speechQueue.length) {
+      const queued = speechQueue.splice(0);
+      queued.forEach(message => speakVN(message));
+    }
+  }
+
+  if ('speechSynthesis' in window) {
+    loadVietnameseVoice();
+    window.speechSynthesis.addEventListener('voiceschanged', loadVietnameseVoice);
+  }
+
+  function speakVN(text) {
+    if (!('speechSynthesis' in window)) {
+      console.warn('Trình duyệt này không hỗ trợ đọc giọng nói.');
+      return;
+    }
+    loadVietnameseVoice();
+    if (!vietnameseVoice) {
+      // Không cho trình duyệt tự rơi về giọng English.
+      if (speechQueue.length < 3) speechQueue.push(text);
+      console.warn('Chưa tìm thấy giọng đọc tiếng Việt. Hãy cài Vietnamese voice trong Windows rồi mở lại Chrome.');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    const utter = new SpeechSynthesisUtterance(text);
+    utter.voice = vietnameseVoice;
+    utter.lang = vietnameseVoice.lang || 'vi-VN';
+    utter.rate = 0.96;
+    utter.pitch = 1.02;
+    utter.volume = 1;
+    window.speechSynthesis.speak(utter);
+  }
+
+  function escapeHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, ch => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[ch]);
+  }
+
+  function renderSeat(seat) {
+    if (!seat.user) {
+      seat.el.innerHTML = '';
+      return;
+    }
+    const u = seat.user;
+    seat.el.innerHTML = `
+      <div class="chibi-guest">
+        ${u.bubble ? `<div class="speech-bubble">${escapeHTML(u.bubble)}</div>` : ''}
+        <div class="guest-avatar-wrap">
+          <img class="guest-avatar" src="${escapeHTML(u.avatar)}" onerror="this.src='https://placehold.co/80x80/6e472b/fff?text=K'">
+        </div>
+        <div class="guest-name">${escapeHTML(u.nickname)}</div>
+      </div>
+    `;
+  }
+
+  function updateCounters() {
+    const sittingCount = seats.filter(s => s.user !== null).length;
+    document.getElementById('statDonors').innerText = Object.keys(topDonors).length;
+    document.getElementById('statServed').innerText = totalServed;
+    document.getElementById('statSitting').innerText = sittingCount;
+    document.getElementById('statWaiting').innerText = waitQueue.length;
+
+    const waitBox = document.getElementById('waitQueueBox');
+    const waitAvatars = document.getElementById('waitAvatars');
+    if (waitQueue.length > 0) {
+      waitBox.style.display = 'flex';
+      waitAvatars.innerHTML = waitQueue.slice(0, 6).map(u =>
+        `<img class="wait-avatar" src="${escapeHTML(u.avatar)}" title="${escapeHTML(u.nickname)}">`
+      ).join('');
+    } else {
+      waitBox.style.display = 'none';
+    }
+  }
+
+  function handleCustomerOrder(data) {
+    const comment = String(data.comment || '');
+    const item = detectMenuItem(comment);
+    const tableMatch = comment.toLowerCase().match(/b[aà]n\s*(\d{1,2})/);
+    const requestedTable = tableMatch ? parseInt(tableMatch[1], 10) : null;
+    if (!item && !(requestedTable >= 1 && requestedTable <= TOTAL_TABLES)) return;
+
+    const uniqueId = String(data.uniqueId || data.userId || `guest-${Date.now()}-${Math.random()}`);
+    const guestObj = {
+      uniqueId,
+      nickname: data.nickname || uniqueId,
+      avatar: data.avatar || '',
+      bubble: item ? item.label : `Đã chọn Bàn ${requestedTable}`,
+      lastActive: Date.now()
+    };
+
+    let existingSeat = seats.find(s => s.user && s.user.uniqueId === uniqueId);
+    if (existingSeat) {
+      if (requestedTable && requestedTable >= 1 && requestedTable <= TOTAL_TABLES &&
+          existingSeat.tableNum !== requestedTable) {
+        const targetEmpty = seats.find(s => s.tableNum === requestedTable && !s.user);
+        if (targetEmpty) {
+          targetEmpty.user = existingSeat.user;
+          existingSeat.user = null;
+          renderSeat(existingSeat);
+          existingSeat = targetEmpty;
+        }
+      }
+      existingSeat.user.bubble = guestObj.bubble;
+      existingSeat.user.lastActive = Date.now();
+      if (data.avatar) existingSeat.user.avatar = data.avatar;
+      if (data.nickname) existingSeat.user.nickname = data.nickname;
+      renderSeat(existingSeat);
+      updateCounters();
+      return;
+    }
+
+    const queued = waitQueue.find(u => u.uniqueId === uniqueId);
+    if (queued) {
+      queued.lastActive = Date.now();
+      queued.bubble = guestObj.bubble;
+      updateCounters();
+      return;
+    }
+
+    let targetSeat = null;
+    if (requestedTable >= 1 && requestedTable <= TOTAL_TABLES) {
+      targetSeat = seats.find(s => s.tableNum === requestedTable && !s.user) || null;
+    }
+    if (!targetSeat) {
+      const allEmpty = seats.filter(s => !s.user);
+      if (allEmpty.length) targetSeat = allEmpty[Math.floor(Math.random() * allEmpty.length)];
+    }
+
+    totalServed++;
+    if (targetSeat) {
+      targetSeat.user = guestObj;
+      renderSeat(targetSeat);
+    } else {
+      waitQueue.push(guestObj);
+    }
+    updateCounters();
+  }
+
+  function normalizeGiftName(value) {
+    return String(value || '').normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase().trim();
+  }
+
+  function isRoseGift(data) {
+    const name = normalizeGiftName(data.giftName);
+    const id = Number(data.giftId);
+    return name === 'rose' || name === 'hoa hong' || name.includes('rose') ||
+      name.includes('hoa hong') || roseGiftIds.has(id);
+  }
+
+  function handleGiftEvent(data) {
+    const uniqueId = String(data.uniqueId || data.userId || `gifter-${Date.now()}`);
+    const repeatCount = Math.max(1, Number(data.repeatCount || 1));
+    const totalDiamonds = Math.max(0, Number(data.totalDiamonds || 0));
+
+    if (!topDonors[uniqueId]) {
+      topDonors[uniqueId] = {
+        nickname: data.nickname || uniqueId,
+        avatar: data.avatar || '',
+        total: 0,
+        roses: 0,
+        isVip: false
+      };
+    }
+    topDonors[uniqueId].nickname = data.nickname || topDonors[uniqueId].nickname;
+    topDonors[uniqueId].avatar = data.avatar || topDonors[uniqueId].avatar;
+    topDonors[uniqueId].total += totalDiamonds;
+    renderTopDonors();
+    updateCounters();
+
+    let donorSeat = seats.find(s => s.user && s.user.uniqueId === uniqueId);
+    if (!donorSeat && seats.some(s => !s.user)) {
+      handleCustomerOrder({
+        uniqueId,
+        nickname: data.nickname,
+        avatar: data.avatar,
+        comment: 'cafe'
+      });
+      donorSeat = seats.find(s => s.user && s.user.uniqueId === uniqueId);
+    }
+
+    if (isRoseGift(data)) {
+      topDonors[uniqueId].roses += repeatCount;
+      const current = (roseProgress.get(uniqueId) || 0) + repeatCount;
+      roseProgress.set(uniqueId, current);
+
+      if (donorSeat) {
+        donorSeat.user.bubble = `🌹 ${repeatCount} Hoa Hồng`;
+        donorSeat.user.lastActive = Date.now();
+        renderSeat(donorSeat);
+      }
+
+      // Cộng dồn Hoa Hồng của cùng người gửi trong phiên LIVE; đủ 10 bông mới kích hoạt.
+      if (current >= 10) {
+        roseProgress.set(uniqueId, current % 10);
+        triggerBaoCaQuan({
+          ...data,
+          uniqueId,
+          nickname: topDonors[uniqueId].nickname,
+          avatar: topDonors[uniqueId].avatar,
+          roseCount: 10
+        });
+      }
+    } else if (donorSeat) {
+      donorSeat.user.bubble = `Cảm ơn ${data.giftName || 'món quà'}!`;
+      donorSeat.user.lastActive = Date.now();
+      renderSeat(donorSeat);
+    }
+    renderTopDonors();
+    updateCounters();
+  }
+
+  function triggerBaoCaQuan(data) {
+    const donor = topDonors[data.uniqueId];
+    if (donor) donor.isVip = true;
+    const modal = document.getElementById('baoQuanModal');
+    document.getElementById('bqAvatar').src = data.avatar || 'https://placehold.co/120x120/6e472b/fff?text=VIP';
+    document.getElementById('bqName').innerText = data.nickname || 'Gia Chủ Chill';
+    modal.classList.add('active');
+
+    seats.forEach(s => {
+      if (s.user) {
+        s.user.bubble = `Cảm ơn ${data.nickname || 'Gia Chủ'}! 🌹`;
+        renderSeat(s);
+      }
+    });
+
+    speakVN(`${data.nickname || 'Gia chủ'} vừa tặng mười Hoa Hồng và bao cả quán KON COFFEE! Cả sân vườn cảm ơn bạn!`);
+    renderTopDonors();
+
+    clearTimeout(window.baoQuanTimer);
+    window.baoQuanTimer = setTimeout(() => modal.classList.remove('active'), 6500);
+  }
+
+  function renderTopDonors() {
+    const sorted = Object.values(topDonors).sort((a, b) => b.total - a.total).slice(0, 4);
+    const container = document.getElementById('topDonorsList');
+    container.innerHTML = sorted.map(d => `
+      <div class="vip-slot">
+        <img src="${d.avatar}" onerror="this.src='https://placehold.co/60x60/6e472b/fff?text=V'">
+        <span>${escapeHTML(d.nickname)}</span>
+        <small class="vip-tag">${d.isVip ? 'VIP KIOT 10' : `${Number(d.roses || 0)} 🌹`}</small>
+      </div>
+    `).join('');
+  }
+
+  function addChillPoints(points) {
+    chillPercent = Math.min(100, chillPercent + points);
+    document.getElementById('chillFill').style.width = `${chillPercent}%`;
+    document.getElementById('chillLabel').innerText = `🎵 CHILL ${chillPercent}%`;
+
+    if (chillPercent >= 100 && !document.body.classList.contains('sunset-mode')) {
+      document.body.classList.add('sunset-mode');
+      document.getElementById('chillLabel').innerText = `🌅 HOÀNG HÔN BÃI CHÁY ĐÃ BẬT! Chụp màn hình nhận quà tại Kiot 10!`;
+      speakVN('Năng lượng Chill đã đạt một trăm phần trăm! Chào mừng các bạn đến với hoàng hôn tại Kiot 10 Kon Coffee Bãi Cháy!');
+      setTimeout(() => {
+        chillPercent = 25;
+        document.body.classList.remove('sunset-mode');
+        document.getElementById('chillFill').style.width = `25%`;
+        document.getElementById('chillLabel').innerText = `🎵 CHILL 25%`;
+      }, 120000);
+    }
+  }
+
+  setInterval(() => {
+    const now = Date.now();
+    seats.forEach(s => {
+      if (s.user && now - s.user.lastActive > AUTO_LEAVE_MS) {
+        s.user = waitQueue.length > 0 ? waitQueue.shift() : null;
+        renderSeat(s);
+      }
+    });
+    updateCounters();
+  }, 15000);
+
+  const ctaMessages = [
+    'Bình luận <strong>COFFEE / CHILL / BÀN 1-25</strong> để chọn chỗ ngồi • <strong>10 HOA HỒNG = BAO CẢ QUÁN!</strong>',
+    '📸 <strong>Chụp màn hình nhân vật của bạn</strong> mang ra <strong>Kiot 10 Bồ Nâu, Bãi Cháy</strong> nhận ngay đĩa Hướng dương FREE!',
+    '🌊 Ghé <strong>KON COFFEE - Kiot 10 Bãi Cháy</strong> thưởng thức Cafe Kem Muối & Sữa Chua KON chuẩn gu!'
+  ];
+  let ctaIdx = 0;
+  setInterval(() => {
+    ctaIdx = (ctaIdx + 1) % ctaMessages.length;
+    document.getElementById('footerTicker').innerHTML = ctaMessages[ctaIdx];
+  }, 12000);
+
+  // Nhắc ưu đãi tại quán thật mỗi 10 phút, bằng giọng Việt nếu máy đã có Vietnamese voice.
+  const O2O_REMINDER = 'Bạn nào đang có nhân vật tại sân vườn ảo, hãy chụp màn hình và ghé KON COFFEE, Kiot 10 Bồ Nâu, Bãi Cháy. Đưa màn hình cho Barista để nhận topping miễn phí hoặc một đĩa hướng dương nhé!';
+  setInterval(() => speakVN(O2O_REMINDER), 10 * 60 * 1000);
+
+  if (typeof io !== 'undefined') {
+    const socket = io();
+    socket.on('tiktok_chat', data => handleCustomerOrder(data));
+    socket.on('tiktok_like', data => addChillPoints(Math.ceil(data.likeCount / 5)));
+    socket.on('tiktok_gift', data => handleGiftEvent(data));
+  }
+
+  window.addEventListener('keydown', e => {
+    if (e.key === '1') {
+      const id = Math.floor(Math.random() * 999);
+      handleCustomerOrder({
+        uniqueId: 'user' + id,
+        nickname: 'Khách Chill ' + id,
+        avatar: `https://i.pravatar.cc/100?u=${id}`,
+        comment: ['cafe muoi', 'sua chua kon', 'cold brew', 'tra dao', 'huong duong'][id % 5]
+      });
+    } else if (e.key === '2') {
+      handleGiftEvent({
+        uniqueId: 'nhungtran',
+        nickname: 'Nhung Trần ❤️',
+        avatar: 'https://i.pravatar.cc/120?u=nhung',
+        giftName: 'Rose',
+        repeatCount: 10,
+        totalDiamonds: 10
+      });
+    } else if (e.key === '3') {
+      addChillPoints(100);
+    }
+  });
+</script>
+</body>
+</html>

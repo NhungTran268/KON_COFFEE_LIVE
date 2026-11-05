@@ -1,0 +1,56 @@
+HƯỚNG DẪN CHẠY KON COFFEE LIVE GAME
+Phiên bản 1.2.0 | Phong cách sân vườn cafe | 25 bàn / 100 chỗ
+
+1. CÀI ĐẶT
+- Cài Node.js bản LTS: https://nodejs.org/
+- Giải nén thư mục KON_COFFEE_LIVE, giữ file garden-bg.jpg cùng thư mục với index.html.
+- Mở Terminal / Command Prompt ngay trong thư mục đó.
+- Chạy: npm install
+
+2. KHỞI CHẠY
+- Chạy: npm start
+- Mở Chrome: http://localhost:3000
+- Trong OBS / TikTok Live Studio, thêm Browser Source:
+  + URL: http://localhost:3000
+  + Width: 1080
+  + Height: 1920
+
+3. KẾT NỐI TIKTOK LIVE
+- Mặc định kết nối kênh @kon.coffee.
+- Kênh phải đang phát LIVE và có thể truy cập công khai.
+- Không nhập mật khẩu TikTok vào source code.
+- Có thể đổi kênh bằng biến môi trường TIKTOK_USERNAME.
+- Kết nối dùng thư viện tiktok-live-connector bên thứ ba; TikTok có thể thay đổi giao thức nên không cam kết hoạt động 24/7.
+
+4. LUẬT CHƠI
+- Bình luận từ khóa món như “cafe muoi”, “sua chua”, “cold brew”, “tra dao”, “huong duong” để vào quán.
+- Bình luận “ban 1” đến “ban 25” để chọn bàn. Mỗi bàn có 4 chỗ.
+- Tổng sức chứa: 25 bàn x 4 chỗ = 100 khách.
+- Khách không hoạt động trong 6 phút sẽ rời bàn; khách chờ sẽ được xếp vào chỗ trống.
+- Thả tim làm tăng thanh CHILL. Khi đạt 100%, bật Hoàng Hôn Bãi Cháy.
+
+5. QUÀ TẶNG: 10 HOA HỒNG = BAO CẢ QUÁN
+- Chỉ quà có tên Rose / Hoa Hồng (hoặc giftId 5655) mới được tính là Hoa Hồng.
+- Hoa Hồng của từng người được cộng dồn trong phiên LIVE; khi một người đạt đủ 10 bông sẽ kích hoạt Bao Cả Quán.
+- Quà khác không kích hoạt sự kiện này.
+- Với gift dạng streak, server chỉ gửi event cuối của chuỗi để tránh cộng lặp repeatCount.
+- Bảng Gia Chủ xếp hạng theo tổng kim cương của các quà đã gửi; danh hiệu VIP KIOT 10 được gắn sau khi Bao Cả Quán.
+- Lưu ý: ID 5655 là mã Rose thường gặp trong catalog TikTok. Tên quà vẫn được kiểm tra kèm theo; nếu TikTok đổi ID/tên theo vùng hoặc phiên bản, cần cập nhật danh sách nhận diện.
+
+6. TEST KHI CHƯA LIVE
+- Nhấn phím 1: giả lập khách bình luận gọi món.
+- Nhấn phím 2: giả lập một combo 10 Rose, kiểm tra banner Bao Cả Quán.
+- Nhấn phím 3: đẩy CHILL lên 100%, bật Hoàng Hôn Bãi Cháy.
+
+7. GIỌNG ĐỌC TIẾNG VIỆT
+- Game chỉ chọn voice có ngôn ngữ vi-VN / vi; không tự chuyển sang tiếng Anh.
+- Nếu không có voice tiếng Việt, trình duyệt sẽ không đọc nội dung đó.
+- Trên Windows, cài gói Vietnamese Speech / Text-to-speech nếu được cung cấp trong Settings.
+- Sau khi cài, đóng và mở lại Chrome.
+- Kiểm tra voice trong DevTools Console:
+  speechSynthesis.getVoices().map(v => ({name:v.name, lang:v.lang}))
+
+8. GHI CHÚ
+- Giao diện là game 2D chạy trên Browser Source, không phải game 3D tương tác tự do.
+- Các nhân vật hiển thị avatar TikTok thật khi connector cung cấp URL avatar.
+- Mốc ưu đãi tại quán thật cần do KON COFFEE xác nhận, quy định số lượng và thời hạn trước khi quảng bá.
