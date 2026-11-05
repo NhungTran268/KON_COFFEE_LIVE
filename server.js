@@ -171,12 +171,16 @@ app.post('/api/admin/login', (req, res) => {
   if (!safeEqual(supplied, ADMIN_PASSWORD)) return res.status(401).json({ ok:false, error:'Mật khẩu không đúng.' });
   const token = crypto.randomBytes(32).toString('hex');
   adminSessions.set(token, { signature: signAdminToken(token), expiresAt: Date.now() + ADMIN_SESSION_TTL });
-  res.cookie(ADMIN_COOKIE, token, { httpOnly:true, secure:process.env.NODE_ENV === 'production', sameSite:'strict', path:'/', maxAge:ADMIN_SESSION_TTL });
+  const cookieParts = [`${ADMIN_COOKIE}=${encodeURIComponent(token)}`, 'HttpOnly', 'Path=/', 'SameSite=Strict', 'Max-Age=43200'];
+  if (process.env.NODE_ENV === 'production') cookieParts.push('Secure');
+  res.setHeader('Set-Cookie', cookieParts.join('; '));
   res.json({ ok:true, state:adminState });
 });
 app.post('/api/admin/logout', requireAdmin, (req, res) => {
   adminSessions.delete(getCookie(req, ADMIN_COOKIE));
-  res.clearCookie(ADMIN_COOKIE, { path:'/', sameSite:'strict', secure:process.env.NODE_ENV === 'production' });
+  const clearParts = [`${ADMIN_COOKIE}=; HttpOnly; Path=/; SameSite=Strict; Max-Age=0`];
+  if (process.env.NODE_ENV === 'production') clearParts.push('Secure');
+  res.setHeader('Set-Cookie', clearParts.join('; '));
   res.json({ ok:true });
 });
 app.get('/api/admin/state', requireAdmin, (_req, res) => res.json({ ok:true, state:adminState }));
