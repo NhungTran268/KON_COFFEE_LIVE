@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: kon-coffee-live
+    runtime: node
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    envVars:
+      - key: TIKTOK_USERNAME
+        value: kon.coffee

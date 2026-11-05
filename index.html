@@ -239,6 +239,25 @@
   }
   .footer-cta strong { color: #ffbf3f; }
 
+  .voice-panel {
+    position: fixed; top: 14px; right: 14px; z-index: 100;
+    display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 7px;
+    max-width: 520px;
+  }
+  .voice-control {
+    border: 2px solid #ffe0a0; border-radius: 24px;
+    background: rgba(43, 27, 15, .96); color: #ffe8bd;
+    padding: 10px 15px; font: 900 16px 'Nunito', sans-serif;
+    box-shadow: 0 4px 14px rgba(0,0,0,.45); cursor: pointer;
+  }
+  .voice-control.secondary { font-size: 14px; padding: 9px 12px; }
+  .voice-control.ready { border-color: #8fe3a1; color: #caffd3; }
+  .voice-control.error { border-color: #ff9a9a; color: #ffd0d0; }
+  .voice-status {
+    flex-basis: 100%; max-width: 520px; padding: 5px 10px; border-radius: 12px;
+    color: #fff; background: rgba(20,15,10,.82); font-size: 13px;
+    text-align: right; pointer-events: none;
+  }
   .bao-quan-modal {
     position: absolute; top: 38%; left: 50%;
     transform: translate(-50%, -50%) scale(0.7);
@@ -276,6 +295,13 @@
 </style>
 </head>
 <body>
+
+<div class="voice-panel" aria-label="Điều khiển giọng đọc">
+  <button id="voiceButton" class="voice-control" type="button">🔊 BẬT GIỌNG</button>
+  <button id="voiceTestButton" class="voice-control secondary" type="button">🎙️ NGHE THỬ</button>
+  <button id="voiceStopButton" class="voice-control secondary" type="button">🔇 TẮT GIỌNG</button>
+  <div id="voiceStatus" class="voice-status">Giọng đọc: chưa bật · Nhấn BẬT GIỌNG để bắt đầu</div>
+</div>
 
 <div class="ambient-overlay"></div>
 
@@ -396,45 +422,126 @@
     return null;
   }
 
+  // Hệ thống dẫn chương trình: chỉ chọn giọng tiếng Việt, tuyệt đối không đọc tiếng Anh thay thế.
   let vietnameseVoice = null;
   let speechQueue = [];
-  function loadVietnameseVoice() {
-    if (!('speechSynthesis' in window)) return;
-    const voices = window.speechSynthesis.getVoices();
-    vietnameseVoice = voices.find(v => /^vi(-|_)?vn$/i.test(v.lang))
-      || voices.find(v => /^vi([_-]|$)/i.test(v.lang))
-      || null;
-    if (vietnameseVoice && speechQueue.length) {
-      const queued = speechQueue.splice(0);
-      queued.forEach(message => speakVN(message));
+  let speechUnlocked = false;
+  let speechIsPlaying = false;
+  let speechEnabled = true;
+  const voiceButton = document.getElementById('voiceButton');
+  const voiceTestButton = document.getElementById('voiceTestButton');
+  const voiceStopButton = document.getElementById('voiceStopButton');
+  const voiceStatus = document.getElementById('voiceStatus');
+  const recentWelcome = new Map();
+  const BIG_GIFT_DIAMONDS = 30; // Mốc quà lớn, có thể điều chỉnh sau khi chạy thử.
+
+  function setVoiceStatus(message, state = '') {
+    if (voiceStatus) voiceStatus.textContent = `Giọng đọc: ${message}`;
+    if (voiceButton) {
+      voiceButton.classList.remove('ready', 'error');
+      if (state) voiceButton.classList.add(state);
+      voiceButton.textContent = state === 'ready' ? '🔊 GIỌNG ĐÃ BẬT' : '🔊 BẬT GIỌNG';
     }
+  }
+
+  function loadVietnameseVoice() {
+    if (!('speechSynthesis' in window)) {
+      setVoiceStatus('trình duyệt không hỗ trợ đọc văn bản', 'error');
+      return null;
+    }
+    const voices = window.speechSynthesis.getVoices() || [];
+    vietnameseVoice = voices.find(v => /^vi[-_]vn$/i.test(v.lang))
+      || voices.find(v => /^vi([_-]|$)/i.test(v.lang)) || null;
+    if (vietnameseVoice) {
+      setVoiceStatus(`sẵn sàng · ${vietnameseVoice.name} (${vietnameseVoice.lang})`, speechUnlocked ? 'ready' : '');
+    } else {
+      setVoiceStatus('chưa tìm thấy giọng tiếng Việt trên máy chạy OBS/Chrome', 'error');
+    }
+    return vietnameseVoice;
+  }
+
+  function drainSpeechQueue() {
+    if (!speechEnabled || !speechUnlocked || !vietnameseVoice || speechIsPlaying || !speechQueue.length) return;
+    const message = speechQueue.shift();
+    const utter = new SpeechSynthesisUtterance(message);
+    utter.voice = vietnameseVoice;
+    utter.lang = vietnameseVoice.lang || 'vi-VN';
+    utter.rate = 0.94; // Nhịp dẫn tự nhiên, rõ chữ.
+    utter.pitch = 1.04;
+    utter.volume = 1;
+    speechIsPlaying = true;
+    utter.onend = () => { speechIsPlaying = false; drainSpeechQueue(); };
+    utter.onerror = () => {
+      speechIsPlaying = false;
+      setVoiceStatus('không phát được · kiểm tra đầu ra âm thanh của OBS', 'error');
+      drainSpeechQueue();
+    };
+    window.speechSynthesis.speak(utter);
+  }
+
+  function speakVN(message, priority = 'normal') {
+    if (!speechEnabled || !('speechSynthesis' in window)) return;
+    if (!loadVietnameseVoice()) return;
+    const cleanMessage = String(message || '').trim();
+    if (!cleanMessage) return;
+    // Sự kiện quan trọng được ưu tiên, tránh xếp hàng dài và đọc chồng.
+    if (priority === 'high') {
+      speechQueue = [];
+      if (speechIsPlaying) window.speechSynthesis.cancel();
+      speechIsPlaying = false;
+      speechQueue.unshift(cleanMessage);
+    } else {
+      if (speechQueue.includes(cleanMessage)) return;
+      if (speechQueue.length >= 5) speechQueue.shift();
+      speechQueue.push(cleanMessage);
+    }
+    drainSpeechQueue();
+  }
+
+  function enableVietnameseVoice() {
+    if (!('speechSynthesis' in window)) {
+      setVoiceStatus('trình duyệt không hỗ trợ giọng đọc', 'error');
+      return;
+    }
+    const voice = loadVietnameseVoice();
+    if (!voice) return;
+    speechEnabled = true;
+    speechUnlocked = true;
+    setVoiceStatus(`đã bật · ${voice.name}`, 'ready');
+    speakVN('Xin chào cả nhà! KON COFFEE đã sẵn sàng đón khách. Mời cả nhà vào quán, chọn bàn và cùng chill nhé!', 'high');
+  }
+
+  function testVietnameseVoice() {
+    if (!speechUnlocked) {
+      setVoiceStatus('hãy nhấn BẬT GIỌNG trước khi nghe thử', 'error');
+      return;
+    }
+    speakVN('A lô, a lô! Đây là KON COFFEE Kiot 10 Bãi Cháy. Cảm ơn cả nhà đã ghé chơi. Chúc mọi người có một buổi tối thật chill!', 'high');
+  }
+
+  function stopVietnameseVoice() {
+    speechEnabled = false;
+    speechQueue = [];
+    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    speechIsPlaying = false;
+    setVoiceStatus('đã tắt tiếng đọc tự động');
   }
 
   if ('speechSynthesis' in window) {
     loadVietnameseVoice();
     window.speechSynthesis.addEventListener('voiceschanged', loadVietnameseVoice);
   }
+  if (voiceButton) voiceButton.addEventListener('click', enableVietnameseVoice);
+  if (voiceTestButton) voiceTestButton.addEventListener('click', testVietnameseVoice);
+  if (voiceStopButton) voiceStopButton.addEventListener('click', stopVietnameseVoice);
 
-  function speakVN(text) {
-    if (!('speechSynthesis' in window)) {
-      console.warn('Trình duyệt này không hỗ trợ đọc giọng nói.');
-      return;
-    }
-    loadVietnameseVoice();
-    if (!vietnameseVoice) {
-      // Không cho trình duyệt tự rơi về giọng English.
-      if (speechQueue.length < 3) speechQueue.push(text);
-      console.warn('Chưa tìm thấy giọng đọc tiếng Việt. Hãy cài Vietnamese voice trong Windows rồi mở lại Chrome.');
-      return;
-    }
-    window.speechSynthesis.cancel();
-    const utter = new SpeechSynthesisUtterance(text);
-    utter.voice = vietnameseVoice;
-    utter.lang = vietnameseVoice.lang || 'vi-VN';
-    utter.rate = 0.96;
-    utter.pitch = 1.02;
-    utter.volume = 1;
-    window.speechSynthesis.speak(utter);
+  function announceGuest(data) {
+    const id = String(data.uniqueId || data.userId || data.nickname || 'khach');
+    const now = Date.now();
+    if (now - (recentWelcome.get(id) || 0) < 45000) return;
+    recentWelcome.set(id, now);
+    const name = String(data.nickname || 'một vị khách').slice(0, 32);
+    speakVN(`Xin chào ${name}! Chào mừng bạn ghé KON COFFEE. Mời bạn chọn một bàn và gọi món yêu thích nhé!`);
   }
 
   function escapeHTML(value) {
@@ -534,6 +641,7 @@
     }
 
     totalServed++;
+    announceGuest({ uniqueId, nickname: guestObj.nickname });
     if (targetSeat) {
       targetSeat.user = guestObj;
       renderSeat(targetSeat);
@@ -587,7 +695,17 @@
       donorSeat = seats.find(s => s.user && s.user.uniqueId === uniqueId);
     }
 
-    if (isRoseGift(data)) {
+    const giftNameForVoice = String(data.giftName || 'món quà').slice(0, 40);
+    const isRose = isRoseGift(data);
+    if (!isRose && totalDiamonds >= BIG_GIFT_DIAMONDS) {
+      speakVN(`Ôi tuyệt vời! ${topDonors[uniqueId].nickname} vừa gửi ${giftNameForVoice}. Cảm ơn bạn đã tiếp lửa cho KON COFFEE!`, 'high');
+    } else if (!isRose) {
+      speakVN(`KON COFFEE cảm ơn ${topDonors[uniqueId].nickname} đã gửi ${giftNameForVoice}!`);
+    } else {
+      speakVN(`${topDonors[uniqueId].nickname} vừa gửi ${repeatCount} Hoa Hồng. Cảm ơn bạn nhé!`);
+    }
+
+    if (isRose) {
       topDonors[uniqueId].roses += repeatCount;
       const current = (roseProgress.get(uniqueId) || 0) + repeatCount;
       roseProgress.set(uniqueId, current);
@@ -633,7 +751,7 @@
       }
     });
 
-    speakVN(`${data.nickname || 'Gia chủ'} vừa tặng mười Hoa Hồng và bao cả quán KON COFFEE! Cả sân vườn cảm ơn bạn!`);
+    speakVN(`${data.nickname || 'Gia chủ'} vừa tặng đủ mười Hoa Hồng và bao cả quán KON COFFEE! Cả sân vườn xin cảm ơn gia chủ!`, 'high');
     renderTopDonors();
 
     clearTimeout(window.baoQuanTimer);
@@ -645,7 +763,7 @@
     const container = document.getElementById('topDonorsList');
     container.innerHTML = sorted.map(d => `
       <div class="vip-slot">
-        <img src="${d.avatar}" onerror="this.src='https://placehold.co/60x60/6e472b/fff?text=V'">
+        <img src="${escapeHTML(d.avatar)}" onerror="this.src='https://placehold.co/60x60/6e472b/fff?text=V'">
         <span>${escapeHTML(d.nickname)}</span>
         <small class="vip-tag">${d.isVip ? 'VIP KIOT 10' : `${Number(d.roses || 0)} 🌹`}</small>
       </div>
@@ -660,7 +778,7 @@
     if (chillPercent >= 100 && !document.body.classList.contains('sunset-mode')) {
       document.body.classList.add('sunset-mode');
       document.getElementById('chillLabel').innerText = `🌅 HOÀNG HÔN BÃI CHÁY ĐÃ BẬT! Chụp màn hình nhận quà tại Kiot 10!`;
-      speakVN('Năng lượng Chill đã đạt một trăm phần trăm! Chào mừng các bạn đến với hoàng hôn tại Kiot 10 Kon Coffee Bãi Cháy!');
+      speakVN('Bùng nổ rồi cả nhà ơi! Năng lượng Chill đã đạt một trăm phần trăm! Hoàng hôn Bãi Cháy chính thức lên đèn tại KON COFFEE!', 'high');
       setTimeout(() => {
         chillPercent = 25;
         document.body.classList.remove('sunset-mode');
@@ -694,11 +812,12 @@
 
   // Nhắc ưu đãi tại quán thật mỗi 10 phút, bằng giọng Việt nếu máy đã có Vietnamese voice.
   const O2O_REMINDER = 'Bạn nào đang có nhân vật tại sân vườn ảo, hãy chụp màn hình và ghé KON COFFEE, Kiot 10 Bồ Nâu, Bãi Cháy. Đưa màn hình cho Barista để nhận topping miễn phí hoặc một đĩa hướng dương nhé!';
-  setInterval(() => speakVN(O2O_REMINDER), 10 * 60 * 1000);
+  setInterval(() => { if (speechUnlocked) speakVN(O2O_REMINDER); }, 10 * 60 * 1000);
 
   if (typeof io !== 'undefined') {
     const socket = io();
     socket.on('tiktok_chat', data => handleCustomerOrder(data));
+    socket.on('tiktok_member', data => announceGuest(data));
     socket.on('tiktok_like', data => addChillPoints(Math.ceil(data.likeCount / 5)));
     socket.on('tiktok_gift', data => handleGiftEvent(data));
   }
@@ -723,6 +842,8 @@
       });
     } else if (e.key === '3') {
       addChillPoints(100);
+    } else if (e.key.toLowerCase() === 'v') {
+      enableVietnameseVoice();
     }
   });
 </script>

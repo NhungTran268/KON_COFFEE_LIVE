@@ -9,6 +9,9 @@ const io = new Server(server);
 
 app.use(express.static(__dirname));
 
+let tiktokConnected = false;
+app.get('/healthz', (_req, res) => res.json({ ok: true, tiktokConnected, username: TIKTOK_USERNAME }));
+
 const PORT = Number(process.env.PORT || 3000);
 const TIKTOK_USERNAME = (process.env.TIKTOK_USERNAME || 'kon.coffee').replace(/^@/, '');
 
@@ -35,6 +38,7 @@ async function connectTikTok() {
   connecting = true;
   try {
     const state = await tiktokConnection.connect();
+    tiktokConnected = true;
     console.log(`✅ Đã kết nối @${TIKTOK_USERNAME} | Room ID: ${state.roomId}`);
   } catch (error) {
     console.error(`❌ Không kết nối được @${TIKTOK_USERNAME}: ${error.message}`);
@@ -93,11 +97,24 @@ tiktokConnection.on('gift', data => {
   io.emit('tiktok_gift', payload);
 });
 
+tiktokConnection.on('member', data => {
+  const user = data.user || data;
+  const payload = {
+    uniqueId: user.uniqueId || user.userId || data.uniqueId || data.userId,
+    nickname: user.nickname || data.nickname || user.uniqueId || 'Khách mới',
+    avatar: user.profilePictureUrl || data.profilePictureUrl || ''
+  };
+  io.emit('tiktok_member', payload);
+  console.log(`👋 Khách mới vào LIVE: ${payload.nickname}`);
+});
+
 tiktokConnection.on('streamEnd', () => {
+  tiktokConnected = false;
   console.log('⚠️ Phiên LIVE đã kết thúc. Server tiếp tục chờ kết nối phiên LIVE tiếp theo.');
 });
 
 tiktokConnection.on('disconnected', () => {
+  tiktokConnected = false;
   console.log('⚠️ Kết nối TikTok bị ngắt. Sẽ thử kết nối lại sau 10 giây...');
   scheduleReconnect();
 });
@@ -111,7 +128,7 @@ io.on('connection', socket => {
   socket.on('disconnect', () => console.log(`⚪ Màn hình game đã ngắt: ${socket.id}`));
 });
 
-server.listen(PORT, () => {
+server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 KON COFFEE LIVE đang chạy tại http://localhost:${PORT}`);
   console.log(`🎥 Kênh TikTok: @${TIKTOK_USERNAME}`);
   connectTikTok();

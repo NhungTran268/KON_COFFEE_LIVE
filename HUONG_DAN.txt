@@ -1,5 +1,5 @@
 HƯỚNG DẪN CHẠY KON COFFEE LIVE GAME
-Phiên bản 1.2.0 | Phong cách sân vườn cafe | 25 bàn / 100 chỗ
+Phiên bản 1.4.0 | Phong cách sân vườn cafe | 25 bàn / 100 chỗ
 
 1. CÀI ĐẶT
 - Cài Node.js bản LTS: https://nodejs.org/
@@ -54,3 +54,13 @@ Phiên bản 1.2.0 | Phong cách sân vườn cafe | 25 bàn / 100 chỗ
 - Giao diện là game 2D chạy trên Browser Source, không phải game 3D tương tác tự do.
 - Các nhân vật hiển thị avatar TikTok thật khi connector cung cấp URL avatar.
 - Mốc ưu đãi tại quán thật cần do KON COFFEE xác nhận, quy định số lượng và thời hạn trước khi quảng bá.
+
+
+ĐIỀU KHIỂN GIỌNG ĐỌC (v1.4.0)
+- Mở game trong OBS Browser Source.
+- Nhấn BẬT GIỌNG để cho phép trình duyệt phát tiếng.
+- Nhấn NGHE THỬ để kiểm tra.
+- Nhấn TẮT GIỌNG để dừng đọc.
+- Chỉ dùng giọng tiếng Việt; nếu không có giọng vi-VN/vi, game báo trạng thái và không chuyển sang tiếng Anh.
+- Game đọc lời chào khách mới, quà tặng, đủ 10 Hoa Hồng bao cả quán, CHILL 100% và quà lớn từ 30 kim cương.
+- Lưu ý: giọng đọc phụ thuộc giọng tiếng Việt có trên máy chạy OBS Browser Source. Muốn giọng MC tự nhiên hơn cần tích hợp dịch vụ TTS tiếng Việt có khóa API.
