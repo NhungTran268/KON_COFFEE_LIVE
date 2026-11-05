@@ -9,3 +9,5 @@ services:
     envVars:
       - key: TIKTOK_USERNAME
         value: kon.coffee
+      - key: ADMIN_PASSWORD
+        sync: false
