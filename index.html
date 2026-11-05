@@ -2,6 +2,7 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>KON COFFEE - Kiot 10 Bãi Cháy Live Game</title>
 <script src="/socket.io/socket.io.js"></script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
@@ -292,9 +293,22 @@
     display: inline-block; background: #3b1c04; color: #ffd97d;
     font-size: 24px; padding: 10px 28px; border-radius: 30px;
   }
+
+  /* Portrait canvas 9:16: keep the complete game visible in LIVE Studio's actual browser viewport. */
+  html, body { width:100%; height:100%; min-width:0; min-height:0; margin:0; padding:0; overflow:hidden; background:transparent; }
+  body { position:relative; }
+  #gameStage {
+    position:absolute; width:1080px; height:1920px; left:50%; top:50%;
+    transform-origin:center center; overflow:hidden;
+    background:
+      linear-gradient(180deg, rgba(18,22,18,.18), rgba(16,25,16,.32)),
+      url('garden-bg.jpg') center center / cover no-repeat;
+    background-color:#263d2b;
+  }
 </style>
 </head>
 <body>
+<div id="gameStage">
 
 <div class="voice-panel" aria-label="Điều khiển giọng đọc">
   <button id="voiceButton" class="voice-control" type="button">🔊 BẬT GIỌNG</button>
@@ -863,6 +877,23 @@
       enableVietnameseVoice();
     }
   });
+</script>
+</div>
+<script>
+(function(){
+  const stage=document.getElementById("gameStage");
+  if(!stage) return;
+  function fitPortraitStage(){
+    const w=document.documentElement.clientWidth || window.innerWidth;
+    const h=document.documentElement.clientHeight || window.innerHeight;
+    const scale=Math.min(w/1080,h/1920);
+    stage.style.transform="translate(-50%, -50%) scale("+scale+")";
+  }
+  fitPortraitStage();
+  window.addEventListener("resize",fitPortraitStage,{passive:true});
+  if(window.visualViewport) window.visualViewport.addEventListener("resize",fitPortraitStage,{passive:true});
+  if(window.ResizeObserver){ new ResizeObserver(fitPortraitStage).observe(document.documentElement); }
+})();
 </script>
 </body>
 </html>
