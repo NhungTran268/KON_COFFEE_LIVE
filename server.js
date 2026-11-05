@@ -128,6 +128,86 @@ io.on('connection', socket => {
   socket.on('disconnect', () => console.log(`⚪ Màn hình game đã ngắt: ${socket.id}`));
 });
 
+
+// ===== KON ADMIN: private login + real-time controls =====
+const crypto = require('crypto');
+app.use(express.json({ limit: '32kb' }));
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || ADMIN_PASSWORD;
+const ADMIN_COOKIE = 'kon_admin_session';
+const ADMIN_SESSION_TTL = 12 * 60 * 60 * 1000;
+let adminState = { lighting: 'normal', brightness: 100, decorations: true, updatedAt: Date.now() };
+const adminSessions = new Map();
+
+function signAdminToken(token) {
+  return crypto.createHmac('sha256', ADMIN_SESSION_SECRET).update(token).digest('hex');
+}
+function safeEqual(a, b) {
+  const aa = Buffer.from(String(a || ''));
+  const bb = Buffer.from(String(b || ''));
+  return aa.length === bb.length && crypto.timingSafeEqual(aa, bb);
+}
+function getCookie(req, name) {
+  const raw = req.headers.cookie || '';
+  const item = raw.split(';').map(v => v.trim()).find(v => v.startsWith(name + '='));
+  return item ? decodeURIComponent(item.slice(name.length + 1)) : '';
+}
+function isAdminRequest(req) {
+  if (!ADMIN_SESSION_SECRET) return false;
+  const token = getCookie(req, ADMIN_COOKIE);
+  const record = adminSessions.get(token);
+  return !!(record && record.expiresAt > Date.now() && safeEqual(record.signature, signAdminToken(token)));
+}
+function requireAdmin(req, res, next) {
+  if (!ADMIN_PASSWORD) return res.status(503).json({ ok:false, error:'Chưa cấu hình ADMIN_PASSWORD trên Render.' });
+  if (!isAdminRequest(req)) return res.status(401).json({ ok:false, error:'Vui lòng đăng nhập Admin.' });
+  next();
+}
+app.get('/api/admin/status', (_req, res) => res.json({ enabled: !!ADMIN_PASSWORD }));
+app.post('/api/admin/login', (req, res) => {
+  if (!ADMIN_PASSWORD) return res.status(503).json({ ok:false, error:'Chủ hệ thống cần đặt biến ADMIN_PASSWORD trên Render.' });
+  const supplied = String(req.body?.password || '');
+  if (!safeEqual(supplied, ADMIN_PASSWORD)) return res.status(401).json({ ok:false, error:'Mật khẩu không đúng.' });
+  const token = crypto.randomBytes(32).toString('hex');
+  adminSessions.set(token, { signature: signAdminToken(token), expiresAt: Date.now() + ADMIN_SESSION_TTL });
+  res.cookie(ADMIN_COOKIE, token, { httpOnly:true, secure:process.env.NODE_ENV === 'production', sameSite:'strict', path:'/', maxAge:ADMIN_SESSION_TTL });
+  res.json({ ok:true, state:adminState });
+});
+app.post('/api/admin/logout', requireAdmin, (req, res) => {
+  adminSessions.delete(getCookie(req, ADMIN_COOKIE));
+  res.clearCookie(ADMIN_COOKIE, { path:'/', sameSite:'strict', secure:process.env.NODE_ENV === 'production' });
+  res.json({ ok:true });
+});
+app.get('/api/admin/state', requireAdmin, (_req, res) => res.json({ ok:true, state:adminState }));
+app.patch('/api/admin/state', requireAdmin, (req, res) => {
+  const body = req.body || {};
+  if (body.lighting !== undefined) {
+    if (!['normal','lights-off','sunset','night'].includes(body.lighting)) return res.status(400).json({ok:false,error:'Chế độ ánh sáng không hợp lệ.'});
+    adminState.lighting = body.lighting;
+  }
+  if (body.brightness !== undefined) {
+    const n = Number(body.brightness);
+    if (!Number.isFinite(n) || n < 35 || n > 100) return res.status(400).json({ok:false,error:'Độ sáng phải từ 35 đến 100.'});
+    adminState.brightness = n;
+  }
+  if (body.decorations !== undefined) adminState.decorations = !!body.decorations;
+  adminState.updatedAt = Date.now();
+  io.emit('admin:state', adminState);
+  res.json({ok:true,state:adminState});
+});
+io.use((socket, next) => {
+  if (socket.handshake.auth?.role !== 'admin') return next();
+  const raw = socket.handshake.headers.cookie || '';
+  const item = raw.split(';').map(v=>v.trim()).find(v=>v.startsWith(ADMIN_COOKIE+'='));
+  const token = item ? decodeURIComponent(item.slice(ADMIN_COOKIE.length+1)) : '';
+  const record = adminSessions.get(token);
+  if (record && record.expiresAt > Date.now() && safeEqual(record.signature, signAdminToken(token))) return next();
+  next(new Error('Admin authentication required'));
+});
+io.on('connection', socket => {
+  socket.emit('admin:state', adminState);
+});
+
 server.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 KON COFFEE LIVE đang chạy tại http://localhost:${PORT}`);
   console.log(`🎥 Kênh TikTok: @${TIKTOK_USERNAME}`);
