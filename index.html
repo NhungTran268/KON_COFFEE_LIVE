@@ -422,18 +422,19 @@
     return null;
   }
 
-  // Hệ thống dẫn chương trình: chỉ chọn giọng tiếng Việt, tuyệt đối không đọc tiếng Anh thay thế.
-  let vietnameseVoice = null;
+  // Giọng đọc Hoài My chạy qua chương trình cục bộ trên máy OBS.
+  const VOICE_HELPER = 'http://127.0.0.1:8765';
   let speechQueue = [];
   let speechUnlocked = false;
   let speechIsPlaying = false;
   let speechEnabled = true;
+  let currentAudio = null;
   const voiceButton = document.getElementById('voiceButton');
   const voiceTestButton = document.getElementById('voiceTestButton');
   const voiceStopButton = document.getElementById('voiceStopButton');
   const voiceStatus = document.getElementById('voiceStatus');
   const recentWelcome = new Map();
-  const BIG_GIFT_DIAMONDS = 30; // Mốc quà lớn, có thể điều chỉnh sau khi chạy thử.
+  const BIG_GIFT_DIAMONDS = 30;
 
   function setVoiceStatus(message, state = '') {
     if (voiceStatus) voiceStatus.textContent = `Giọng đọc: ${message}`;
@@ -444,50 +445,63 @@
     }
   }
 
-  function loadVietnameseVoice() {
-    if (!('speechSynthesis' in window)) {
-      setVoiceStatus('trình duyệt không hỗ trợ đọc văn bản', 'error');
+  async function checkVoiceHelper() {
+    try {
+      const response = await fetch(`${VOICE_HELPER}/health`, { method: 'GET', cache: 'no-store' });
+      if (!response.ok) throw new Error('helper unavailable');
+      return await response.json();
+    } catch (_) {
       return null;
     }
-    const voices = window.speechSynthesis.getVoices() || [];
-    vietnameseVoice = voices.find(v => /^vi[-_]vn$/i.test(v.lang))
-      || voices.find(v => /^vi([_-]|$)/i.test(v.lang)) || null;
-    if (vietnameseVoice) {
-      setVoiceStatus(`sẵn sàng · ${vietnameseVoice.name} (${vietnameseVoice.lang})`, speechUnlocked ? 'ready' : '');
-    } else {
-      setVoiceStatus('chưa tìm thấy giọng tiếng Việt trên máy chạy OBS/Chrome', 'error');
-    }
-    return vietnameseVoice;
   }
 
-  function drainSpeechQueue() {
-    if (!speechEnabled || !speechUnlocked || !vietnameseVoice || speechIsPlaying || !speechQueue.length) return;
+  async function drainSpeechQueue() {
+    if (!speechEnabled || !speechUnlocked || speechIsPlaying || !speechQueue.length) return;
     const message = speechQueue.shift();
-    const utter = new SpeechSynthesisUtterance(message);
-    utter.voice = vietnameseVoice;
-    utter.lang = vietnameseVoice.lang || 'vi-VN';
-    utter.rate = 0.94; // Nhịp dẫn tự nhiên, rõ chữ.
-    utter.pitch = 1.04;
-    utter.volume = 1;
     speechIsPlaying = true;
-    utter.onend = () => { speechIsPlaying = false; drainSpeechQueue(); };
-    utter.onerror = () => {
+    try {
+      const response = await fetch(`${VOICE_HELPER}/speak`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: message })
+      });
+      if (!response.ok) throw new Error('Không tạo được âm thanh Hoài My');
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      currentAudio = new Audio(audioUrl);
+      currentAudio.volume = 1;
+      currentAudio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        currentAudio = null;
+        speechIsPlaying = false;
+        drainSpeechQueue();
+      };
+      currentAudio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        currentAudio = null;
+        speechIsPlaying = false;
+        setVoiceStatus('lỗi phát âm thanh trên OBS', 'error');
+        drainSpeechQueue();
+      };
+      await currentAudio.play();
+    } catch (error) {
       speechIsPlaying = false;
-      setVoiceStatus('không phát được · kiểm tra đầu ra âm thanh của OBS', 'error');
-      drainSpeechQueue();
-    };
-    window.speechSynthesis.speak(utter);
+      setVoiceStatus('không kết nối được chương trình Hoài My trên laptop', 'error');
+      speechQueue = [];
+    }
   }
 
   function speakVN(message, priority = 'normal') {
-    if (!speechEnabled || !('speechSynthesis' in window)) return;
-    if (!loadVietnameseVoice()) return;
+    if (!speechEnabled) return;
     const cleanMessage = String(message || '').trim();
     if (!cleanMessage) return;
-    // Sự kiện quan trọng được ưu tiên, tránh xếp hàng dài và đọc chồng.
     if (priority === 'high') {
       speechQueue = [];
-      if (speechIsPlaying) window.speechSynthesis.cancel();
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+      }
       speechIsPlaying = false;
       speechQueue.unshift(cleanMessage);
     } else {
@@ -498,22 +512,21 @@
     drainSpeechQueue();
   }
 
-  function enableVietnameseVoice() {
-    if (!('speechSynthesis' in window)) {
-      setVoiceStatus('trình duyệt không hỗ trợ giọng đọc', 'error');
+  async function enableVietnameseVoice() {
+    speechEnabled = true;
+    const helper = await checkVoiceHelper();
+    if (!helper || !helper.ok) {
+      setVoiceStatus('hãy mở chương trình Hoài My trên laptop trước', 'error');
       return;
     }
-    const voice = loadVietnameseVoice();
-    if (!voice) return;
-    speechEnabled = true;
     speechUnlocked = true;
-    setVoiceStatus(`đã bật · ${voice.name}`, 'ready');
+    setVoiceStatus('đã kết nối · Hoài My Neural', 'ready');
     speakVN('Xin chào cả nhà! KON COFFEE đã sẵn sàng đón khách. Mời cả nhà vào quán, chọn bàn và cùng chill nhé!', 'high');
   }
 
   function testVietnameseVoice() {
     if (!speechUnlocked) {
-      setVoiceStatus('hãy nhấn BẬT GIỌNG trước khi nghe thử', 'error');
+      setVoiceStatus('hãy nhấn BẬT GIỌNG sau khi mở chương trình Hoài My', 'error');
       return;
     }
     speakVN('A lô, a lô! Đây là KON COFFEE Kiot 10 Bãi Cháy. Cảm ơn cả nhà đã ghé chơi. Chúc mọi người có một buổi tối thật chill!', 'high');
@@ -522,15 +535,19 @@
   function stopVietnameseVoice() {
     speechEnabled = false;
     speechQueue = [];
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
     speechIsPlaying = false;
     setVoiceStatus('đã tắt tiếng đọc tự động');
   }
 
-  if ('speechSynthesis' in window) {
-    loadVietnameseVoice();
-    window.speechSynthesis.addEventListener('voiceschanged', loadVietnameseVoice);
-  }
+  checkVoiceHelper().then(helper => {
+    if (helper && helper.ok) setVoiceStatus('đã tìm thấy Hoài My Neural · nhấn BẬT GIỌNG để bắt đầu');
+    else setVoiceStatus('chưa mở chương trình Hoài My trên laptop');
+  });
   if (voiceButton) voiceButton.addEventListener('click', enableVietnameseVoice);
   if (voiceTestButton) voiceTestButton.addEventListener('click', testVietnameseVoice);
   if (voiceStopButton) voiceStopButton.addEventListener('click', stopVietnameseVoice);
