@@ -9,27 +9,12 @@
 <section class="card"><h2>01 · MÀN HÌNH LIVE</h2><div class="preview">KON COFFEE<br>LIVE 9:16</div><p class="muted">Đây là khung tham chiếu. Màn hình LIVE thực tế vẫn nằm ở nguồn Browser trong TikTok LIVE Studio.</p><div class="status" id="connection">Đang kết nối máy chủ…</div></section>
 <section class="card"><h2>02 · ĐIỀU KHIỂN ÁNH SÁNG</h2><div class="actions"><button data-light="normal">☀️ Bật đèn</button><button data-light="lights-off">🌙 Tắt đèn</button><button data-light="sunset">🌇 Hoàng hôn</button><button data-light="night">🌌 Ban đêm</button></div><div class="row"><label for="brightness">Độ sáng</label><strong id="brightnessValue">100%</strong></div><input id="brightness" class="range" type="range" min="35" max="100" value="100"></section>
 <section class="card"><h2>03 · KHÔNG GIAN QUÁN</h2><div class="row"><span>Hiệu ứng ánh sáng trang trí</span><button id="decorationsBtn">Đang bật</button></div><p class="muted">Các thay đổi được phát tới mọi màn hình game đang kết nối.</p></section>
-<section class="card"><h2>04 · ÂM THANH LIVE</h2>
-<div class="row"><span>Nhạc nền lo-fi</span><button id="musicEnabledBtn">Đang bật</button></div>
-<div class="row"><label for="musicVolume">Âm lượng nhạc</label><strong id="musicVolumeValue">35%</strong></div><input id="musicVolume" class="range" type="range" min="0" max="100" value="35">
-<div class="row"><span>Giọng đọc tiếng Việt</span><button id="voiceEnabledBtn">Đang bật</button></div>
-<div class="row"><label for="voiceVolume">Âm lượng giọng đọc</label><strong id="voiceVolumeValue">85%</strong></div><input id="voiceVolume" class="range" type="range" min="0" max="100" value="85">
-<div class="row"><span>Hiệu ứng sự kiện</span><button id="sfxEnabledBtn">Đang bật</button></div>
-<div class="row"><label for="sfxVolume">Âm lượng hiệu ứng</label><strong id="sfxVolumeValue">60%</strong></div><input id="sfxVolume" class="range" type="range" min="0" max="100" value="60">
-<p class="muted">Nhạc và hiệu ứng được tạo trực tiếp trong trình duyệt. Giọng đọc cần có giọng tiếng Việt trên máy phát LIVE và mở âm thanh một lần bằng nút BẬT ÂM THANH.</p></section>
-<section class="card"><h2>05 · TRẠNG THÁI ĐỒNG BỘ</h2><div id="stateText" class="status">Chưa nhận trạng thái.</div><p class="muted">Lệnh được lưu trên tiến trình máy chủ hiện tại. Nếu Render khởi động lại, trạng thái trở về mặc định.</p></section>
+<section class="card"><h2>04 · TRẠNG THÁI ĐỒNG BỘ</h2><div id="stateText" class="status">Chưa nhận trạng thái.</div><p class="muted">Lệnh được lưu trên tiến trình máy chủ hiện tại. Nếu Render khởi động lại, trạng thái trở về mặc định.</p></section>
 </div></div>
 <script>
 const $=id=>document.getElementById(id);let state={lighting:'normal',brightness:100,decorations:true},socket;
 async function api(url,options={}){const r=await fetch(url,{credentials:'same-origin',headers:{'Content-Type':'application/json',...(options.headers||{})},...options});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Có lỗi xảy ra');return j}
-function render(){
- document.querySelectorAll('[data-light]').forEach(b=>b.style.outline=b.dataset.light===state.lighting?'2px solid #f5cb82':'none');
- $('brightness').value=state.brightness;$('brightnessValue').textContent=state.brightness+'%';
- $('decorationsBtn').textContent=state.decorations?'Đang bật':'Đang tắt';
- ['music','voice','sfx'].forEach(k=>$(k+'EnabledBtn').textContent=state[k+'Enabled']?'Đang bật':'Đang tắt');
- ['music','voice','sfx'].forEach(k=>{$(k+'Volume').value=state[k+'Volume'];$(k+'VolumeValue').textContent=state[k+'Volume']+'%'});
- $('stateText').textContent='Ánh sáng: '+state.lighting+' · Độ sáng: '+state.brightness+'% · Trang trí: '+(state.decorations?'Bật':'Tắt')+' · Nhạc: '+(state.musicEnabled?'Bật':'Tắt')+' · Giọng: '+(state.voiceEnabled?'Bật':'Tắt');
-}
+function render(){document.querySelectorAll('[data-light]').forEach(b=>b.style.outline=b.dataset.light===state.lighting?'2px solid #f5cb82':'none');$('brightness').value=state.brightness;$('brightnessValue').textContent=state.brightness+'%';$('decorationsBtn').textContent=state.decorations?'Đang bật':'Đang tắt';$('stateText').textContent='Ánh sáng: '+state.lighting+' · Độ sáng: '+state.brightness+'% · Trang trí: '+(state.decorations?'Bật':'Tắt');}
 async function patch(p){try{const j=await api('/api/admin/state',{method:'PATCH',body:JSON.stringify(p)});state=j.state;render()}catch(e){$('connection').textContent=e.message}}
 function connect(){socket=io({auth:{role:'admin'}});socket.on('connect',()=>$('connection').textContent='Đã kết nối realtime với máy chủ');socket.on('connect_error',e=>$('connection').textContent='Mất kết nối: '+e.message);socket.on('admin:state',s=>{state=s;render()})}
 $('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginMsg').textContent='Đang đăng nhập…';try{const j=await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('password').value})});state=j.state;$('loginView').classList.add('hidden');$('appView').classList.remove('hidden');render();connect()}catch(err){$('loginMsg').textContent=err.message}});
@@ -37,10 +22,5 @@ $('logoutBtn').onclick=async()=>{try{await api('/api/admin/logout',{method:'POST
 document.querySelectorAll('[data-light]').forEach(b=>b.onclick=()=>patch({lighting:b.dataset.light}));
 $('brightness').onchange=e=>patch({brightness:Number(e.target.value)});
 $('decorationsBtn').onclick=()=>patch({decorations:!state.decorations});
-['music','voice','sfx'].forEach(k=>$(k+'EnabledBtn').onclick=()=>patch({[k+'Enabled']:!state[k+'Enabled']}));
-['music','voice','sfx'].forEach(k=>{
- $(k+'Volume').oninput=e=>$(k+'VolumeValue').textContent=e.target.value+'%';
- $(k+'Volume').onchange=e=>patch({[k+'Volume']:Number(e.target.value)});
-});
 (async()=>{try{const s=await api('/api/admin/state');state=s.state;$('loginView').classList.add('hidden');$('appView').classList.remove('hidden');render();connect()}catch(e){$('loginMsg').textContent=e.message}})();
 </script></body></html>

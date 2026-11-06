@@ -1,7 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const { TikTokLiveConnection, WebcastEvent, ControlEvent } = require('tiktok-live-connector');
+const { WebcastPushConnection } = require('tiktok-live-connector');
 
 const app = express();
 const server = http.createServer(app);
@@ -16,78 +16,77 @@ app.get('/healthz', (_req, res) => res.json({ ok: true, tiktokConnected, usernam
 const PORT = Number(process.env.PORT || 3000);
 const TIKTOK_USERNAME = (process.env.TIKTOK_USERNAME || 'kon.coffee').replace(/^@/, '');
 
-const tiktokConnection = new TikTokLiveConnection(TIKTOK_USERNAME, {
-  signApiKey: process.env.EULER_API_KEY || undefined,
-  enableExtendedGiftInfo: true
+const tiktokConnection = new WebcastPushConnection(TIKTOK_USERNAME, {
+  processInitialData: false,
+  enableExtendedGiftInfo: true,
+  enableWebsocketUpgrade: true,
+  requestPollingIntervalMs: 1000
 });
 
 let reconnectTimer = null;
 let connecting = false;
 
-function scheduleReconnect(delayMs = 30000) {
+function scheduleReconnect() {
   if (reconnectTimer) return;
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     connectTikTok();
-  }, delayMs);
-}
-
-function tiktokUser(data) {
-  const user = data.user || {};
-  const profile = user.profilePicture || data.profilePicture || {};
-  return {
-    uniqueId: user.uniqueId || user.userId || data.uniqueId || data.userId || 'khach',
-    nickname: user.nickname || data.nickname || user.uniqueId || 'Khách KON',
-    avatar: profile.url?.[0] || user.profilePictureUrl || data.profilePictureUrl || ''
-  };
+  }, 10000);
 }
 
 async function connectTikTok() {
-  if (connecting || tiktokConnected) return;
+  if (connecting) return;
   connecting = true;
   try {
     const state = await tiktokConnection.connect();
     tiktokConnected = true;
-    console.log('✅ Đã kết nối @' + TIKTOK_USERNAME + ' | Room ID: ' + state.roomId);
+    console.log(`✅ Đã kết nối @${TIKTOK_USERNAME} | Room ID: ${state.roomId}`);
   } catch (error) {
-    tiktokConnected = false;
-    console.error('❌ Không kết nối được @' + TIKTOK_USERNAME + ': ' + (error.message || error));
-    scheduleReconnect(error && error.name === 'UserOfflineError' ? 45000 : 15000);
+    console.error(`❌ Không kết nối được @${TIKTOK_USERNAME}: ${error.message}`);
+    scheduleReconnect();
   } finally {
     connecting = false;
   }
 }
 
-tiktokConnection.on(WebcastEvent.CHAT, data => {
-  const user = tiktokUser(data);
-  io.emit('tiktok_chat', { ...user, comment: data.comment || '' });
+tiktokConnection.on('chat', data => {
+  io.emit('tiktok_chat', {
+    uniqueId: data.uniqueId || data.userId || data.user?.uniqueId,
+    nickname: data.nickname || data.user?.nickname || data.uniqueId || 'Khách KON',
+    avatar: data.profilePictureUrl || data.user?.profilePictureUrl || '',
+    comment: data.comment || ''
+  });
 });
 
-tiktokConnection.on(WebcastEvent.MEMBER, data => {
-  const user = tiktokUser(data);
-  io.emit('tiktok_member', user);
-  console.log('👋 Khách mới vào LIVE: ' + user.nickname);
+tiktokConnection.on('like', data => {
+  io.emit('tiktok_like', {
+    uniqueId: data.uniqueId || data.userId || data.user?.uniqueId,
+    nickname: data.nickname || data.user?.nickname || data.uniqueId || 'Khách KON',
+    likeCount: Number(data.likeCount || 0)
+  });
 });
 
-tiktokConnection.on(WebcastEvent.LIKE, data => {
-  const user = tiktokUser(data);
-  io.emit('tiktok_like', { ...user, likeCount: Number(data.likeCount || 1) });
-});
-
-tiktokConnection.on(WebcastEvent.GIFT, data => {
-  const details = data.giftDetails || {};
-  const extended = data.extendedGiftInfo || {};
-  const giftType = Number(details.giftType ?? extended.giftType ?? data.giftType ?? 0);
+tiktokConnection.on('gift', data => {
+  // Gift dạng streak phát nhiều event có repeatCount tăng dần.
+  // Chỉ xử lý event cuối để không cộng một combo nhiều lần.
+  const giftType = Number(data.giftType ?? data.giftDetails?.giftType ?? data.extendedGiftInfo?.giftType ?? 0);
   const repeatEnd = data.repeatEnd === true || data.repeatEnd === 1 || data.repeatEnd === '1';
   if (giftType === 1 && !repeatEnd) return;
 
   const repeatCount = Math.max(1, Number(data.repeatCount || 1));
-  const diamondCount = Number(details.diamondCount ?? extended.diamond_count ?? data.diamondCount ?? 0);
-  const giftName = details.giftName || extended.name || data.giftName || 'Quà TikTok';
-  const user = tiktokUser(data);
+  const diamondCount = Number(data.diamondCount ?? data.giftDetails?.diamondCount ?? data.extendedGiftInfo?.diamondCount ?? 0);
+  const giftName =
+    data.giftName ||
+    data.giftDetails?.giftName ||
+    data.extendedGiftInfo?.name ||
+    data.extendedGiftInfo?.giftName ||
+    'Quà TikTok';
+
   const payload = {
-    ...user,
-    giftId: Number(details.giftId ?? extended.gift_id ?? data.giftId ?? 0),
+    uniqueId: data.uniqueId || data.userId || data.user?.uniqueId,
+    nickname: data.nickname || data.user?.nickname || data.uniqueId || 'Gia chủ Chill',
+    avatar: data.profilePictureUrl || data.user?.profilePictureUrl || '',
+    giftId: Number(data.giftId || data.giftDetails?.giftId || data.extendedGiftInfo?.giftId || 0),
     giftName,
     giftType,
     repeatCount,
@@ -95,20 +94,34 @@ tiktokConnection.on(WebcastEvent.GIFT, data => {
     transactionId: data.msgId || data.transactionId || null
   };
 
-  console.log('🎁 @' + payload.uniqueId + ' gửi ' + repeatCount + ' x ' + giftName + ' (giftId: ' + payload.giftId + ')');
+  console.log(`🎁 @${payload.uniqueId || 'unknown'} gửi ${repeatCount} x ${giftName} (giftId: ${payload.giftId})`);
   io.emit('tiktok_gift', payload);
 });
 
-tiktokConnection.on(WebcastEvent.STREAM_END, () => {
-  tiktokConnected = false;
-  console.log('⚠️ Phiên LIVE đã kết thúc. Server tiếp tục chờ phiên LIVE tiếp theo.');
-  scheduleReconnect(45000);
+tiktokConnection.on('member', data => {
+  const user = data.user || data;
+  const payload = {
+    uniqueId: user.uniqueId || user.userId || data.uniqueId || data.userId,
+    nickname: user.nickname || data.nickname || user.uniqueId || 'Khách mới',
+    avatar: user.profilePictureUrl || data.profilePictureUrl || ''
+  };
+  io.emit('tiktok_member', payload);
+  console.log(`👋 Khách mới vào LIVE: ${payload.nickname}`);
 });
 
-tiktokConnection.on(ControlEvent.DISCONNECTED, () => {
+tiktokConnection.on('streamEnd', () => {
   tiktokConnected = false;
-  console.log('⚠️ Kết nối TikTok bị ngắt. Sẽ thử lại sau 30 giây.');
+  console.log('⚠️ Phiên LIVE đã kết thúc. Server tiếp tục chờ kết nối phiên LIVE tiếp theo.');
+});
+
+tiktokConnection.on('disconnected', () => {
+  tiktokConnected = false;
+  console.log('⚠️ Kết nối TikTok bị ngắt. Sẽ thử kết nối lại sau 10 giây...');
   scheduleReconnect();
+});
+
+tiktokConnection.on('error', error => {
+  console.error('❌ TikTok connector:', error?.message || error);
 });
 
 io.on('connection', socket => {
@@ -124,7 +137,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || ADMIN_PASSWORD;
 const ADMIN_COOKIE = 'kon_admin_session';
 const ADMIN_SESSION_TTL = 12 * 60 * 60 * 1000;
-let adminState = { lighting: 'normal', brightness: 100, decorations: true, musicEnabled: true, musicVolume: 35, voiceEnabled: true, voiceVolume: 85, sfxEnabled: true, sfxVolume: 60, updatedAt: Date.now() };
+let adminState = { lighting: 'normal', brightness: 100, decorations: true, updatedAt: Date.now() };
 const adminSessions = new Map();
 
 function signAdminToken(token) {
@@ -183,19 +196,6 @@ app.patch('/api/admin/state', requireAdmin, (req, res) => {
     adminState.brightness = n;
   }
   if (body.decorations !== undefined) adminState.decorations = !!body.decorations;
-  for (const key of ['musicEnabled', 'voiceEnabled', 'sfxEnabled']) {
-    if (body[key] !== undefined) {
-      if (typeof body[key] !== 'boolean') return res.status(400).json({ok:false,error:'Trạng thái âm thanh không hợp lệ.'});
-      adminState[key] = body[key];
-    }
-  }
-  for (const key of ['musicVolume', 'voiceVolume', 'sfxVolume']) {
-    if (body[key] !== undefined) {
-      const n = Number(body[key]);
-      if (!Number.isFinite(n) || n < 0 || n > 100) return res.status(400).json({ok:false,error:'Âm lượng phải từ 0 đến 100.'});
-      adminState[key] = n;
-    }
-  }
   adminState.updatedAt = Date.now();
   io.emit('admin:state', adminState);
   res.json({ok:true,state:adminState});

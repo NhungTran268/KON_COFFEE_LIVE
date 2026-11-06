@@ -5,37 +5,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>KON COFFEE - Kiot 10 Bãi Cháy Live Game</title>
 <script src="/socket.io/socket.io.js"></script>
-<script>
-/* KON recovery diagnostics: show runtime failures instead of a silent blank screen. */
-(function () {
-  function showKONError(message) {
-    function render() {
-      let panel = document.getElementById('kon-runtime-error');
-      if (!panel) {
-        panel = document.createElement('div');
-        panel.id = 'kon-runtime-error';
-        panel.style.cssText = 'position:fixed;z-index:999999;left:12px;right:12px;top:12px;padding:14px 16px;border:2px solid #ff7777;border-radius:12px;background:#281313;color:#fff;font:14px/1.45 system-ui,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 8px 28px #0009';
-        (document.body || document.documentElement).appendChild(panel);
-      }
-      panel.textContent = 'KON COFFEE LIVE gặp lỗi khi khởi chạy:\n' + String(message).slice(0, 1200) + '\nMở F12 → Console để xem chi tiết.';
-    }
-    if (document.body) render();
-    else document.addEventListener('DOMContentLoaded', render, { once: true });
-  }
-  window.addEventListener('error', function (event) {
-    showKONError(event.message || (event.target && (event.target.src || event.target.href)) || 'Không tải được tài nguyên.');
-  }, true);
-  window.addEventListener('unhandledrejection', function (event) {
-    const reason = event.reason;
-    showKONError(reason && reason.stack ? reason.stack : reason || 'Promise bị từ chối không được xử lý.');
-  });
-  window.addEventListener('DOMContentLoaded', function () {
-    if (typeof window.io !== 'function') {
-      showKONError('Không tải được Socket.IO tại /socket.io/socket.io.js. Kiểm tra máy chủ hoặc Network.');
-    }
-  }, { once: true });
-})();
-</script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
@@ -369,7 +338,7 @@
   <button id="voiceButton" class="voice-control" type="button">🔊 BẬT GIỌNG</button>
   <button id="voiceTestButton" class="voice-control secondary" type="button">🎙️ NGHE THỬ</button>
   <button id="voiceStopButton" class="voice-control secondary" type="button">🔇 TẮT GIỌNG</button>
-  <div id="voiceStatus" class="voice-status">Nhấn BẬT ÂM THANH để cho phép nhạc và giọng đọc</div>
+  <div id="voiceStatus" class="voice-status">Giọng đọc: chưa bật · Nhấn BẬT GIỌNG để bắt đầu</div>
 </div>
 
 <div class="ambient-overlay"></div>
@@ -518,25 +487,18 @@
       lightsButton.classList.toggle('off', off);
       lightsButton.setAttribute('aria-pressed', String(off));
     }
-    syncAudioState(state);
   }
   if (typeof io !== 'undefined') {
     const adminSyncSocket = io();
     adminSyncSocket.on('admin:state', applyAdminState);
   }
 
-  // Audio engine ported from AgencyLive: generated lo-fi, event SFX and Vietnamese browser TTS.
-  const KON_AUDIO = {
-    ctx: null, master: null, musicBus: null, sfxBus: null,
-    musicEnabled: true, musicVolume: 35, voiceEnabled: true, voiceVolume: 85,
-    sfxEnabled: true, sfxVolume: 60, timer: null, step: 0, speechDucking: false
-  };
-  let vietnameseVoice = null;
+  const VOICE_HELPER = 'http://127.0.0.1:8765';
   let speechQueue = [];
   let speechUnlocked = false;
   let speechIsPlaying = false;
   let speechEnabled = true;
-  let localVoiceMuted = false;
+  let currentAudio = null;
   const voiceButton = document.getElementById('voiceButton');
   const voiceTestButton = document.getElementById('voiceTestButton');
   const voiceStopButton = document.getElementById('voiceStopButton');
@@ -545,240 +507,96 @@
   const BIG_GIFT_DIAMONDS = 30;
 
   function setVoiceStatus(message, state = '') {
-    if (voiceStatus) voiceStatus.textContent = 'Âm thanh: ' + message;
+    if (voiceStatus) voiceStatus.textContent = `Giọng đọc: ${message}`;
     if (voiceButton) {
       voiceButton.classList.remove('ready', 'error');
       if (state) voiceButton.classList.add(state);
-      voiceButton.textContent = state === 'ready' ? '🔊 ÂM THANH ĐÃ MỞ' : '🔊 BẬT ÂM THANH';
+      voiceButton.textContent = state === 'ready' ? '🔊 GIỌNG ĐÃ BẬT' : '🔊 BẬT GIỌNG';
     }
   }
 
-  function audioEnsure() {
-    if (KON_AUDIO.ctx) return KON_AUDIO.ctx;
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) {
-      setVoiceStatus('trình duyệt không hỗ trợ Web Audio', 'error');
+  async function checkVoiceHelper() {
+    try {
+      const response = await fetch(`${VOICE_HELPER}/health`, { method: 'GET', cache: 'no-store' });
+      if (!response.ok) throw new Error('helper unavailable');
+      return await response.json();
+    } catch (_) {
       return null;
     }
-    const ctx = KON_AUDIO.ctx = new AudioCtx();
-    KON_AUDIO.master = ctx.createGain();
-    KON_AUDIO.master.gain.value = 1;
-    KON_AUDIO.master.connect(ctx.destination);
-    KON_AUDIO.musicBus = ctx.createGain();
-    KON_AUDIO.musicBus.gain.value = 0;
-    KON_AUDIO.musicBus.connect(KON_AUDIO.master);
-    KON_AUDIO.sfxBus = ctx.createGain();
-    KON_AUDIO.sfxBus.gain.value = 0;
-    KON_AUDIO.sfxBus.connect(KON_AUDIO.master);
-    audioUpdateGains();
-    return ctx;
   }
 
-  function audioUpdateGains() {
-    if (!KON_AUDIO.ctx) return;
-    const now = KON_AUDIO.ctx.currentTime;
-    const music = KON_AUDIO.musicEnabled ? KON_AUDIO.musicVolume / 100 * (KON_AUDIO.speechDucking ? 0.35 : 1) : 0;
-    const sfx = KON_AUDIO.sfxEnabled ? KON_AUDIO.sfxVolume / 100 : 0;
-    KON_AUDIO.musicBus.gain.setTargetAtTime(music, now, 0.08);
-    KON_AUDIO.sfxBus.gain.setTargetAtTime(sfx, now, 0.04);
-  }
-
-  function audioUnlock() {
-    const ctx = audioEnsure();
-    if (!ctx) return;
-    speechUnlocked = true;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    audioUpdateGains();
-    if (KON_AUDIO.musicEnabled) audioStartMusic();
-  }
-
-  const KON_CHORDS = [[57,60,64,67],[53,57,60,64],[48,52,55,59],[55,59,62,65]];
-  function midiHz(note) { return 440 * Math.pow(2, (note - 69) / 12); }
-
-  function audioTone(frequency, when, duration, type, volume, bus) {
-    const ctx = KON_AUDIO.ctx;
-    if (!ctx || !bus) return;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type || 'sine';
-    osc.frequency.value = frequency;
-    gain.gain.setValueAtTime(0, when);
-    gain.gain.linearRampToValueAtTime(volume, when + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0008, when + duration);
-    osc.connect(gain);
-    gain.connect(bus);
-    osc.start(when);
-    osc.stop(when + duration + 0.05);
-  }
-
-  function audioNoise(when, duration, volume, highpass, bus) {
-    const ctx = KON_AUDIO.ctx;
-    if (!ctx || !bus) return;
-    const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * duration)), ctx.sampleRate);
-    const samples = buffer.getChannelData(0);
-    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
-    const source = ctx.createBufferSource();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-    source.buffer = buffer;
-    filter.type = 'highpass';
-    filter.frequency.value = highpass || 5000;
-    gain.gain.setValueAtTime(volume, when);
-    gain.gain.exponentialRampToValueAtTime(0.001, when + duration);
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(bus);
-    source.start(when);
-  }
-
-  function audioMusicTick() {
-    if (!KON_AUDIO.ctx || !KON_AUDIO.musicEnabled) return;
-    const ctx = KON_AUDIO.ctx;
-    const when = ctx.currentTime + 0.05;
-    const beat = 0.375;
-    const step = KON_AUDIO.step++;
-    const chord = KON_CHORDS[Math.floor(step / 8) % KON_CHORDS.length];
-    if (step % 8 === 0) chord.forEach(note => audioTone(midiHz(note), when, beat * 8, 'triangle', 0.05, KON_AUDIO.musicBus));
-    if (step % 8 === 0 || step % 8 === 5) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.setValueAtTime(110, when);
-      osc.frequency.exponentialRampToValueAtTime(40, when + 0.18);
-      gain.gain.setValueAtTime(0.16, when);
-      gain.gain.exponentialRampToValueAtTime(0.001, when + 0.25);
-      osc.connect(gain);
-      gain.connect(KON_AUDIO.musicBus);
-      osc.start(when);
-      osc.stop(when + 0.3);
-    }
-    if (step % 8 === 4) audioNoise(when, 0.15, 0.07, 1500, KON_AUDIO.musicBus);
-    audioNoise(when + beat / 2, 0.04, 0.025, 8000, KON_AUDIO.musicBus);
-    if (Math.random() < 0.45) {
-      const note = chord[Math.floor(Math.random() * chord.length)] + 12;
-      audioTone(midiHz(note), when + (Math.random() < 0.5 ? 0 : beat / 2), beat * 1.5, 'sine', 0.035, KON_AUDIO.musicBus);
-    }
-  }
-
-  function audioStartMusic() {
-    if (!KON_AUDIO.ctx || !KON_AUDIO.musicEnabled || KON_AUDIO.timer) return;
-    audioMusicTick();
-    KON_AUDIO.timer = window.setInterval(audioMusicTick, 375);
-  }
-
-  function audioStopMusic() {
-    if (KON_AUDIO.timer) window.clearInterval(KON_AUDIO.timer);
-    KON_AUDIO.timer = null;
-  }
-
-  function audioSfx(kind) {
-    if (!KON_AUDIO.ctx || !KON_AUDIO.sfxEnabled || !KON_AUDIO.sfxBus) return;
-    const ctx = KON_AUDIO.ctx;
-    const when = ctx.currentTime + 0.01;
-    if (kind === 'join') {
-      audioTone(880, when, 0.15, 'sine', 0.14, KON_AUDIO.sfxBus);
-      audioTone(1320, when + 0.08, 0.2, 'sine', 0.11, KON_AUDIO.sfxBus);
-    } else if (kind === 'gift') {
-      [0,4,7,12].forEach((n,i) => audioTone(midiHz(72+n), when+i*0.06, 0.25, 'triangle', 0.12, KON_AUDIO.sfxBus));
-    } else if (kind === 'party') {
-      [0,4,7,12,16].forEach((n,i) => audioTone(midiHz(67+n), when+i*0.08, 0.4, 'square', 0.06, KON_AUDIO.sfxBus));
-      audioNoise(when, 0.5, 0.1, 3000, KON_AUDIO.sfxBus);
-    } else if (kind === 'win') {
-      [0,4,7,12,7,12].forEach((n,i) => audioTone(midiHz(72+n), when+i*0.1, 0.3, 'triangle', 0.13, KON_AUDIO.sfxBus));
-    }
-  }
-
-  function syncAudioState(state) {
-    if (!state) return;
-    KON_AUDIO.musicEnabled = state.musicEnabled !== undefined ? !!state.musicEnabled : KON_AUDIO.musicEnabled;
-    KON_AUDIO.musicVolume = Number.isFinite(Number(state.musicVolume)) ? Math.max(0, Math.min(100, Number(state.musicVolume))) : KON_AUDIO.musicVolume;
-    KON_AUDIO.voiceEnabled = state.voiceEnabled !== undefined ? !!state.voiceEnabled : KON_AUDIO.voiceEnabled;
-    KON_AUDIO.voiceVolume = Number.isFinite(Number(state.voiceVolume)) ? Math.max(0, Math.min(100, Number(state.voiceVolume))) : KON_AUDIO.voiceVolume;
-    KON_AUDIO.sfxEnabled = state.sfxEnabled !== undefined ? !!state.sfxEnabled : KON_AUDIO.sfxEnabled;
-    KON_AUDIO.sfxVolume = Number.isFinite(Number(state.sfxVolume)) ? Math.max(0, Math.min(100, Number(state.sfxVolume))) : KON_AUDIO.sfxVolume;
-    audioUpdateGains();
-    if (KON_AUDIO.musicEnabled && speechUnlocked) audioStartMusic();
-    else audioStopMusic();
-    if (!KON_AUDIO.voiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-    else drainSpeechQueue();
-  }
-
-  function loadVietnameseVoice() {
-    if (!('speechSynthesis' in window)) {
-      setVoiceStatus('trình duyệt không hỗ trợ đọc văn bản', 'error');
-      return null;
-    }
-    const voices = window.speechSynthesis.getVoices() || [];
-    const vi = voices.filter(v => /^vi([_-]|$)/i.test(v.lang));
-    vietnameseVoice = vi.find(v => /HoaiMy|Natural/i.test(v.name))
-      || vi.find(v => /Google/i.test(v.name))
-      || vi.find(v => /An\b|Microsoft/i.test(v.name))
-      || vi[0] || null;
-    if (vietnameseVoice) setVoiceStatus('sẵn sàng · ' + vietnameseVoice.name, speechUnlocked ? 'ready' : '');
-    else setVoiceStatus('chưa có giọng tiếng Việt trên máy chạy LIVE', 'error');
-    return vietnameseVoice;
-  }
-
-  function drainSpeechQueue() {
-    if (!speechEnabled || localVoiceMuted || !speechUnlocked || !KON_AUDIO.voiceEnabled ||
-        !vietnameseVoice || speechIsPlaying || !speechQueue.length) return;
+  async function drainSpeechQueue() {
+    if (!speechEnabled || !speechUnlocked || speechIsPlaying || !speechQueue.length) return;
     const message = speechQueue.shift();
-    const utter = new SpeechSynthesisUtterance(message);
-    utter.voice = vietnameseVoice;
-    utter.lang = vietnameseVoice.lang || 'vi-VN';
-    utter.rate = 1.02;
-    utter.pitch = 1.02;
-    utter.volume = KON_AUDIO.voiceVolume / 100;
     speechIsPlaying = true;
-    KON_AUDIO.speechDucking = true;
-    audioUpdateGains();
-    utter.onend = function () {
+    try {
+      const response = await fetch(`${VOICE_HELPER}/speak`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: message })
+      });
+      if (!response.ok) throw new Error('Không tạo được âm thanh Hoài My');
+      const audioBlob = await response.blob();
+      const audioUrl = URL.createObjectURL(audioBlob);
+      currentAudio = new Audio(audioUrl);
+      currentAudio.volume = 1;
+      currentAudio.onended = () => {
+        URL.revokeObjectURL(audioUrl);
+        currentAudio = null;
+        speechIsPlaying = false;
+        drainSpeechQueue();
+      };
+      currentAudio.onerror = () => {
+        URL.revokeObjectURL(audioUrl);
+        currentAudio = null;
+        speechIsPlaying = false;
+        setVoiceStatus('lỗi phát âm thanh trên OBS', 'error');
+        drainSpeechQueue();
+      };
+      await currentAudio.play();
+    } catch (error) {
       speechIsPlaying = false;
-      KON_AUDIO.speechDucking = false;
-      audioUpdateGains();
-      drainSpeechQueue();
-    };
-    utter.onerror = function () {
-      speechIsPlaying = false;
-      KON_AUDIO.speechDucking = false;
-      audioUpdateGains();
-      setVoiceStatus('không phát được · kiểm tra đầu ra âm thanh LIVE Studio', 'error');
-      drainSpeechQueue();
-    };
-    window.speechSynthesis.speak(utter);
+      setVoiceStatus('không kết nối được chương trình Hoài My trên laptop', 'error');
+      speechQueue = [];
+    }
   }
 
-  function speakVN(message, priority) {
-    if (!speechEnabled || localVoiceMuted || !KON_AUDIO.voiceEnabled || !('speechSynthesis' in window)) return;
-    if (!loadVietnameseVoice()) return;
-    const clean = String(message || '').trim();
-    if (!clean) return;
+  function speakVN(message, priority = 'normal') {
+    if (!speechEnabled) return;
+    const cleanMessage = String(message || '').trim();
+    if (!cleanMessage) return;
     if (priority === 'high') {
       speechQueue = [];
-      window.speechSynthesis.cancel();
+      if (currentAudio) {
+        currentAudio.pause();
+        currentAudio.currentTime = 0;
+        currentAudio = null;
+      }
       speechIsPlaying = false;
-      KON_AUDIO.speechDucking = false;
-      speechQueue.unshift(clean);
+      speechQueue.unshift(cleanMessage);
     } else {
-      if (speechQueue.includes(clean)) return;
+      if (speechQueue.includes(cleanMessage)) return;
       if (speechQueue.length >= 5) speechQueue.shift();
-      speechQueue.push(clean);
+      speechQueue.push(cleanMessage);
     }
     drainSpeechQueue();
   }
 
-  function enableVietnameseVoice() {
+  async function enableVietnameseVoice() {
     speechEnabled = true;
-    localVoiceMuted = false;
-    audioUnlock();
-    loadVietnameseVoice();
-    if (!vietnameseVoice) return;
-    setVoiceStatus('đã mở · ' + vietnameseVoice.name, 'ready');
+    const helper = await checkVoiceHelper();
+    if (!helper || !helper.ok) {
+      setVoiceStatus('hãy mở chương trình Hoài My trên laptop trước', 'error');
+      return;
+    }
+    speechUnlocked = true;
+    setVoiceStatus('đã kết nối · Hoài My Neural', 'ready');
     speakVN('Xin chào cả nhà! KON COFFEE đã sẵn sàng đón khách. Mời cả nhà vào quán, chọn bàn và cùng chill nhé!', 'high');
   }
 
   function testVietnameseVoice() {
     if (!speechUnlocked) {
-      setVoiceStatus('hãy nhấn BẬT ÂM THANH trước khi nghe thử', 'error');
+      setVoiceStatus('hãy nhấn BẬT GIỌNG sau khi mở chương trình Hoài My', 'error');
       return;
     }
     speakVN('A lô, a lô! Đây là KON COFFEE Kiot 10 Bãi Cháy. Cảm ơn cả nhà đã ghé chơi. Chúc mọi người có một buổi tối thật chill!', 'high');
@@ -786,33 +604,29 @@
 
   function stopVietnameseVoice() {
     speechEnabled = false;
-    localVoiceMuted = true;
     speechQueue = [];
-    if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    if (currentAudio) {
+      currentAudio.pause();
+      currentAudio.currentTime = 0;
+      currentAudio = null;
+    }
     speechIsPlaying = false;
-    KON_AUDIO.speechDucking = false;
-    audioUpdateGains();
-    setVoiceStatus('đã tắt giọng đọc tại màn hình LIVE');
+    setVoiceStatus('đã tắt tiếng đọc tự động');
   }
 
-  if ('speechSynthesis' in window) {
-    loadVietnameseVoice();
-    window.speechSynthesis.addEventListener('voiceschanged', loadVietnameseVoice);
-  }
+  checkVoiceHelper().then(helper => {
+    if (helper && helper.ok) setVoiceStatus('đã tìm thấy Hoài My Neural · nhấn BẬT GIỌNG để bắt đầu');
+    else setVoiceStatus('chưa mở chương trình Hoài My trên laptop');
+  });
   if (voiceButton) voiceButton.addEventListener('click', enableVietnameseVoice);
   if (voiceTestButton) voiceTestButton.addEventListener('click', testVietnameseVoice);
   if (voiceStopButton) voiceStopButton.addEventListener('click', stopVietnameseVoice);
 
-  window.addEventListener('pointerdown', function () {
-    if (!speechUnlocked) return;
-    audioUnlock();
-  }, { passive: true });
   function announceGuest(data) {
     const id = String(data.uniqueId || data.userId || data.nickname || 'khach');
     const now = Date.now();
     if (now - (recentWelcome.get(id) || 0) < 45000) return;
     recentWelcome.set(id, now);
-    audioSfx('join');
     const name = String(data.nickname || 'một vị khách').slice(0, 32);
     speakVN(`Xin chào ${name}! Chào mừng bạn ghé KON COFFEE. Mời bạn chọn một bàn và gọi món yêu thích nhé!`);
   }
@@ -969,7 +783,6 @@
     }
 
     const giftNameForVoice = String(data.giftName || 'món quà').slice(0, 40);
-    audioSfx('gift');
     const isRose = isRoseGift(data);
     if (!isRose && totalDiamonds >= BIG_GIFT_DIAMONDS) {
       speakVN(`Ôi tuyệt vời! ${topDonors[uniqueId].nickname} vừa gửi ${giftNameForVoice}. Cảm ơn bạn đã tiếp lửa cho KON COFFEE!`, 'high');
@@ -1025,7 +838,6 @@
       }
     });
 
-    audioSfx('party');
     speakVN(`${data.nickname || 'Gia chủ'} vừa tặng đủ mười Hoa Hồng và bao cả quán KON COFFEE! Cả sân vườn xin cảm ơn gia chủ!`, 'high');
     renderTopDonors();
 
@@ -1052,7 +864,6 @@
 
     if (chillPercent >= 100 && !document.body.classList.contains('sunset-mode')) {
       document.body.classList.add('sunset-mode');
-      audioSfx('win');
       document.getElementById('chillLabel').innerText = `🌅 HOÀNG HÔN BÃI CHÁY ĐÃ BẬT! Chụp màn hình nhận quà tại Kiot 10!`;
       speakVN('Bùng nổ rồi cả nhà ơi! Năng lượng Chill đã đạt một trăm phần trăm! Hoàng hôn Bãi Cháy chính thức lên đèn tại KON COFFEE!', 'high');
       setTimeout(() => {
