@@ -20,5 +20,8 @@ jobs:
           node-version: 22
       - name: Install dependencies
         run: npm install
+      - name: Report dependency advisories
+        run: npm audit --omit=dev
+        continue-on-error: true
       - name: Check server and browser scripts
         run: npm run check
