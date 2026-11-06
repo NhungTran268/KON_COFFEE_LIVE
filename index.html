@@ -812,6 +812,7 @@
     const now = Date.now();
     if (now - (recentWelcome.get(id) || 0) < 45000) return;
     recentWelcome.set(id, now);
+    audioSfx('join');
     const name = String(data.nickname || 'một vị khách').slice(0, 32);
     speakVN(`Xin chào ${name}! Chào mừng bạn ghé KON COFFEE. Mời bạn chọn một bàn và gọi món yêu thích nhé!`);
   }
@@ -914,7 +915,6 @@
 
     totalServed++;
     announceGuest({ uniqueId, nickname: guestObj.nickname });
-    audioSfx('join');
     if (targetSeat) {
       targetSeat.user = guestObj;
       renderSeat(targetSeat);
