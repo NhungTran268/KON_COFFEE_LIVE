@@ -137,7 +137,7 @@ const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || ADMIN_PASSWORD;
 const ADMIN_COOKIE = 'kon_admin_session';
 const ADMIN_SESSION_TTL = 12 * 60 * 60 * 1000;
-let adminState = { lighting: 'normal', brightness: 100, decorations: true, updatedAt: Date.now() };
+let adminState = { lighting: 'normal', brightness: 100, decorations: true, musicEnabled: true, musicVolume: 35, voiceEnabled: true, voiceVolume: 85, sfxEnabled: true, sfxVolume: 60, updatedAt: Date.now() };
 const adminSessions = new Map();
 
 function signAdminToken(token) {
@@ -196,6 +196,19 @@ app.patch('/api/admin/state', requireAdmin, (req, res) => {
     adminState.brightness = n;
   }
   if (body.decorations !== undefined) adminState.decorations = !!body.decorations;
+  for (const key of ['musicEnabled', 'voiceEnabled', 'sfxEnabled']) {
+    if (body[key] !== undefined) {
+      if (typeof body[key] !== 'boolean') return res.status(400).json({ok:false,error:'Trạng thái âm thanh không hợp lệ.'});
+      adminState[key] = body[key];
+    }
+  }
+  for (const key of ['musicVolume', 'voiceVolume', 'sfxVolume']) {
+    if (body[key] !== undefined) {
+      const n = Number(body[key]);
+      if (!Number.isFinite(n) || n < 0 || n > 100) return res.status(400).json({ok:false,error:'Âm lượng phải từ 0 đến 100.'});
+      adminState[key] = n;
+    }
+  }
   adminState.updatedAt = Date.now();
   io.emit('admin:state', adminState);
   res.json({ok:true,state:adminState});
