@@ -17,7 +17,7 @@
         panel.style.cssText = 'position:fixed;z-index:999999;left:12px;right:12px;top:12px;padding:14px 16px;border:2px solid #ff7777;border-radius:12px;background:#281313;color:#fff;font:14px/1.45 system-ui,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 8px 28px #0009';
         (document.body || document.documentElement).appendChild(panel);
       }
-      panel.textContent = 'KON COFFEE LIVE gặp lỗi khi khởi chạy:\\n' + String(message).slice(0, 1200) + '\\nMở F12 → Console để xem chi tiết.';
+      panel.textContent = 'KON COFFEE LIVE gặp lỗi khi khởi chạy:\n' + String(message).slice(0, 1200) + '\nMở F12 → Console để xem chi tiết.';
     }
     if (document.body) render();
     else document.addEventListener('DOMContentLoaded', render, { once: true });
