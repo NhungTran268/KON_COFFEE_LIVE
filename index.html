@@ -5,6 +5,37 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>KON COFFEE - Kiot 10 Bãi Cháy Live Game</title>
 <script src="/socket.io/socket.io.js"></script>
+<script>
+/* KON recovery diagnostics: show runtime failures instead of a silent blank screen. */
+(function () {
+  function showKONError(message) {
+    function render() {
+      let panel = document.getElementById('kon-runtime-error');
+      if (!panel) {
+        panel = document.createElement('div');
+        panel.id = 'kon-runtime-error';
+        panel.style.cssText = 'position:fixed;z-index:999999;left:12px;right:12px;top:12px;padding:14px 16px;border:2px solid #ff7777;border-radius:12px;background:#281313;color:#fff;font:14px/1.45 system-ui,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 8px 28px #0009';
+        (document.body || document.documentElement).appendChild(panel);
+      }
+      panel.textContent = 'KON COFFEE LIVE gặp lỗi khi khởi chạy:\\n' + String(message).slice(0, 1200) + '\\nMở F12 → Console để xem chi tiết.';
+    }
+    if (document.body) render();
+    else document.addEventListener('DOMContentLoaded', render, { once: true });
+  }
+  window.addEventListener('error', function (event) {
+    showKONError(event.message || (event.target && (event.target.src || event.target.href)) || 'Không tải được tài nguyên.');
+  }, true);
+  window.addEventListener('unhandledrejection', function (event) {
+    const reason = event.reason;
+    showKONError(reason && reason.stack ? reason.stack : reason || 'Promise bị từ chối không được xử lý.');
+  });
+  window.addEventListener('DOMContentLoaded', function () {
+    if (typeof window.io !== 'function') {
+      showKONError('Không tải được Socket.IO tại /socket.io/socket.io.js. Kiểm tra máy chủ hoặc Network.');
+    }
+  }, { once: true });
+})();
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
