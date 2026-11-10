@@ -1,46 +1,66 @@
 <!doctype html>
-<html lang="vi"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>KON COFFEE · Admin</title><script src="/socket.io/socket.io.js"></script><link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
+<html lang="vi">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>KON COFFEE LIVE · Admin</title>
+<script src="/socket.io/socket.io.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@600;700;800;900&display=swap" rel="stylesheet">
 <style>
-*{box-sizing:border-box}body{margin:0;background:#11140f;color:#f7e8cc;font:15px Nunito,system-ui,sans-serif}.wrap{max-width:1120px;margin:28px auto;padding:0 18px}.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:20px}.brand{font-size:24px;font-weight:900;color:#f5cb82}.muted{color:#b8aa91;font-size:13px}.grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px}.card{background:#20231e;border:1px solid #51432d;border-radius:16px;padding:20px;box-shadow:0 8px 28px #0004}.card h2{font-size:17px;margin:0 0 14px;color:#f5cb82}.login{max-width:430px;margin:12vh auto}.field{width:100%;padding:13px;border-radius:10px;border:1px solid #66563c;background:#12150f;color:white;font:inherit}button{border:1px solid #9b7540;background:#533b20;color:#ffe7bb;padding:11px 15px;border-radius:10px;font:800 14px Nunito;cursor:pointer}button:hover{filter:brightness(1.2)}button.primary{background:#d49b48;color:#211606}button.danger{background:#482525;border-color:#a65d4d}.actions{display:flex;flex-wrap:wrap;gap:9px}.status{padding:10px 12px;border-radius:10px;background:#151912;color:#bcd6a7;margin-top:12px;font-size:13px}.preview{width:180px;aspect-ratio:9/16;background:#050605;border:2px solid #8b6a3b;border-radius:12px;margin:auto;display:grid;place-items:center;color:#d5b77f}.range{width:100%;accent-color:#d49b48}.row{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0}.hidden{display:none!important}@media(max-width:720px){.grid{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}}
-</style></head><body>
-<div id="loginView" class="wrap login card"><div class="brand">☕ KON COFFEE ADMIN</div><p class="muted">Đăng nhập quản trị riêng. Không dùng tài khoản TikTok.</p><form id="loginForm"><input id="password" class="field" type="password" autocomplete="current-password" placeholder="Mật khẩu Admin" required style="margin:12px 0"><button class="primary" type="submit">Đăng nhập</button></form><div id="loginMsg" class="status">Chỉ chủ hệ thống được truy cập.</div></div>
-<div id="appView" class="wrap hidden"><header class="head"><div><div class="brand">☕ KON COFFEE · CONTROL ROOM</div><div class="muted">Bảng điều khiển riêng · Đồng bộ trực tiếp với màn hình LIVE</div></div><button id="logoutBtn" class="danger">Đăng xuất</button></header>
-<div class="grid">
-<section class="card"><h2>01 · MÀN HÌNH LIVE</h2><div class="preview">KON COFFEE<br>LIVE 9:16</div><p class="muted">Đây là khung tham chiếu. Màn hình LIVE thực tế vẫn nằm ở nguồn Browser trong TikTok LIVE Studio.</p><div class="status" id="connection">Đang kết nối máy chủ…</div></section>
-<section class="card"><h2>02 · ĐIỀU KHIỂN ÁNH SÁNG</h2><div class="actions"><button data-light="normal">☀️ Bật đèn</button><button data-light="lights-off">🌙 Tắt đèn</button><button data-light="sunset">🌇 Hoàng hôn</button><button data-light="night">🌌 Ban đêm</button></div><div class="row"><label for="brightness">Độ sáng</label><strong id="brightnessValue">100%</strong></div><input id="brightness" class="range" type="range" min="35" max="100" value="100"></section>
-<section class="card"><h2>03 · KHÔNG GIAN QUÁN</h2><div class="row"><span>Hiệu ứng ánh sáng trang trí</span><button id="decorationsBtn">Đang bật</button></div><p class="muted">Các thay đổi được phát tới mọi màn hình game đang kết nối.</p></section>
-<section class="card"><h2>04 · ÂM THANH LIVE</h2>
-<div class="row"><span>Nhạc nền lo-fi</span><button id="musicEnabledBtn">Đang bật</button></div>
-<div class="row"><label for="musicVolume">Âm lượng nhạc</label><strong id="musicVolumeValue">35%</strong></div><input id="musicVolume" class="range" type="range" min="0" max="100" value="35">
-<div class="row"><span>Giọng đọc tiếng Việt</span><button id="voiceEnabledBtn">Đang bật</button></div>
-<div class="row"><label for="voiceVolume">Âm lượng giọng đọc</label><strong id="voiceVolumeValue">85%</strong></div><input id="voiceVolume" class="range" type="range" min="0" max="100" value="85">
-<div class="row"><span>Hiệu ứng sự kiện</span><button id="sfxEnabledBtn">Đang bật</button></div>
-<div class="row"><label for="sfxVolume">Âm lượng hiệu ứng</label><strong id="sfxVolumeValue">60%</strong></div><input id="sfxVolume" class="range" type="range" min="0" max="100" value="60">
-<p class="muted">Nhạc và hiệu ứng được tạo trực tiếp trong trình duyệt. Giọng đọc cần có giọng tiếng Việt trên máy phát LIVE và mở âm thanh một lần bằng nút BẬT ÂM THANH.</p></section>
-<section class="card"><h2>05 · TRẠNG THÁI ĐỒNG BỘ</h2><div id="stateText" class="status">Chưa nhận trạng thái.</div><p class="muted">Lệnh được lưu trên tiến trình máy chủ hiện tại. Nếu Render khởi động lại, trạng thái trở về mặc định.</p></section>
-</div></div>
+:root{--bg:#1b130e;--panel:#2a1c13;--line:#795735;--gold:#f2c278;--ink:#fff0d7;--muted:#c7ad8c}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 15% 5%,#634021 0,transparent 34%),var(--bg);color:var(--ink);font:15px Nunito,system-ui,sans-serif}.wrap{max-width:1100px;margin:24px auto;padding:0 18px}.head{display:flex;justify-content:space-between;align-items:center;gap:14px;margin-bottom:18px}.brand{font-size:25px;font-weight:900;color:var(--gold)}.muted,.hint{color:var(--muted);font-size:13px;line-height:1.5}.online{background:#255c31;color:#d9ffe0;border-radius:999px;padding:8px 14px;font-weight:900}.grid{display:grid;grid-template-columns:1.1fr .9fr;gap:16px}.card{background:linear-gradient(145deg,#382519,#24170f);border:1px solid var(--line);border-radius:18px;padding:20px;box-shadow:0 10px 28px #0005}.card h2{font-size:18px;color:var(--gold);margin:0 0 14px}.login{max-width:450px;margin:12vh auto}.field{width:100%;padding:14px;border-radius:10px;border:1px solid #94704b;background:#160f0b;color:white;font:inherit}.btn{border:1px solid #a77b46;background:#57391f;color:#fff0d7;padding:10px 15px;border-radius:10px;font:800 14px Nunito;cursor:pointer}.btn.primary{background:#d99c4e;color:#261606}.btn.danger{background:#482525;border-color:#a65d4d}.hidden{display:none!important}.row{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:13px 0}.actions{display:flex;flex-wrap:wrap;gap:8px}.range{width:100%;accent-color:#e8ad5e}.audio-row{padding:12px 0;border-bottom:1px solid #765438}.audio-row:last-child{border:0}.audio-name{font-weight:900}.audio-sub{color:var(--muted);font-size:12px}.toggle{min-width:82px}.toggle.off{opacity:.65;background:#3b2921}.volume-line{display:grid;grid-template-columns:1fr 58px;gap:12px;align-items:center;margin-top:10px}.value{text-align:right;font-weight:900;color:var(--gold)}.status{padding:10px 12px;border-radius:10px;background:#19110c;color:#d6c09f;margin-top:12px;font-size:13px}.hint{margin-top:10px}.preview{background:#17100b;border:1px solid #765438;border-radius:12px;padding:14px;margin-top:10px}
+@media(max-width:850px){.grid{grid-template-columns:1fr}.head{align-items:flex-start;flex-direction:column}.wrap{margin:14px auto}}
+</style></head>
+<body>
+<div id="loginView" class="wrap login card hidden">
+  <div class="brand">☕ KON COFFEE ADMIN</div>
+  <p class="muted">Đăng nhập quản trị. Không dùng tài khoản TikTok.</p>
+  <form id="loginForm"><input id="password" class="field" type="password" autocomplete="current-password" placeholder="Mật khẩu Admin" required style="margin:12px 0"><button class="btn primary" type="submit">Đăng nhập</button></form>
+  <div id="loginMsg" class="status">Đang kiểm tra chế độ truy cập…</div>
+</div>
+<div id="appView" class="wrap hidden">
+  <header class="head">
+    <div><div class="brand">☕ KON COFFEE LIVE · CONTROL ROOM</div><div class="muted">Điều khiển âm thanh và không gian, đồng bộ trực tiếp tới màn hình LIVE.</div></div>
+    <div class="row" style="margin:0"><span class="online" id="connection">● Đang kết nối</span><button id="logoutBtn" class="btn danger">Đăng xuất</button></div>
+  </header>
+  <div class="grid">
+    <section class="card">
+      <h2>🎵 ĐIỀU KHIỂN ÂM THANH</h2>
+      <div class="audio-row"><div class="row"><div><div class="audio-name">Nhạc nền quán</div><div class="audio-sub">Nhạc Lo-fi đang phát trên màn hình LIVE</div></div><button id="musicToggle" class="btn toggle">Đang bật</button></div><div class="volume-line"><input id="musicVolume" class="range" type="range" min="0" max="100"><strong id="musicVolumeValue" class="value">35%</strong></div></div>
+      <div class="audio-row"><div class="row"><div><div class="audio-name">Giọng đọc tiếng Việt</div><div class="audio-sub">Thông báo khách, quà tặng và sự kiện · dùng giọng có trong Chrome/Windows</div></div><button id="voiceToggle" class="btn toggle">Đang bật</button></div><div class="volume-line"><input id="voiceVolume" class="range" type="range" min="0" max="100"><strong id="voiceVolumeValue" class="value">85%</strong></div></div>
+      <div class="audio-row"><div class="row"><div><div class="audio-name">Hiệu ứng âm thanh</div><div class="audio-sub">Khách vào quán, tặng quà và sự kiện</div></div><button id="sfxToggle" class="btn toggle">Đang bật</button></div><div class="volume-line"><input id="sfxVolume" class="range" type="range" min="0" max="100"><strong id="sfxVolumeValue" class="value">60%</strong></div></div>
+      <div class="preview"><strong>Âm thanh được điều khiển từ xa</strong><p class="hint">Mở màn hình game LIVE và bấm nút BẬT ÂM THANH một lần để trình duyệt cho phép phát nhạc/giọng đọc.</p></div>
+    </section>
+    <section class="card">
+      <h2>🌇 KHÔNG GIAN QUÁN</h2>
+      <div class="actions"><button class="btn" data-light="normal">☀️ Bình thường</button><button class="btn" data-light="lights-off">🌙 Tắt đèn</button><button class="btn" data-light="sunset">🌇 Hoàng hôn</button><button class="btn" data-light="night">🌌 Ban đêm</button></div>
+      <div class="row"><label for="brightness">Độ sáng màn hình</label><strong id="brightnessValue">100%</strong></div><input id="brightness" class="range" type="range" min="35" max="100" value="100">
+      <div class="row"><span>Hiệu ứng trang trí</span><button id="decorationsBtn" class="btn">Đang bật</button></div><div id="stateText" class="status">Đang chờ trạng thái…</div>
+    </section>
+    <section class="card">
+      <h2>🛠️ KIỂM TRA KẾT NỐI</h2>
+      <p class="hint">Màn hình game LIVE mở ở tab riêng. Các thay đổi từ Admin được đồng bộ qua Socket.IO.</p>
+      <div class="actions" style="margin-top:12px"><a class="btn" href="/" target="_blank" rel="noreferrer">Mở game LIVE ↗</a><a class="btn" href="/healthz" target="_blank" rel="noreferrer">Kiểm tra máy chủ</a></div>
+      <div class="status">TikTok chỉ gửi bình luận, lượt thích và quà khi tài khoản @kon.coffee đang phát LIVE.</div>
+    </section>
+  </div>
+</div>
 <script>
-const $=id=>document.getElementById(id);let state={lighting:'normal',brightness:100,decorations:true},socket;
+const $=id=>document.getElementById(id);
+let state={lighting:'normal',brightness:100,decorations:true,musicEnabled:true,musicVolume:35,voiceEnabled:true,voiceVolume:85,sfxEnabled:true,sfxVolume:60};
+let socket;
 async function api(url,options={}){const r=await fetch(url,{credentials:'same-origin',headers:{'Content-Type':'application/json',...(options.headers||{})},...options});const j=await r.json().catch(()=>({}));if(!r.ok)throw new Error(j.error||'Có lỗi xảy ra');return j}
 function render(){
+ for(const key of ['music','voice','sfx']){const enabled=state[key+'Enabled'];const btn=$(key+'Toggle');btn.textContent=enabled?'Đang bật':'Đang tắt';btn.classList.toggle('off',!enabled);$(key+'Volume').value=state[key+'Volume'];$(key+'VolumeValue').textContent=state[key+'Volume']+'%'}
  document.querySelectorAll('[data-light]').forEach(b=>b.style.outline=b.dataset.light===state.lighting?'2px solid #f5cb82':'none');
- $('brightness').value=state.brightness;$('brightnessValue').textContent=state.brightness+'%';
- $('decorationsBtn').textContent=state.decorations?'Đang bật':'Đang tắt';
- ['music','voice','sfx'].forEach(k=>$(k+'EnabledBtn').textContent=state[k+'Enabled']?'Đang bật':'Đang tắt');
- ['music','voice','sfx'].forEach(k=>{$(k+'Volume').value=state[k+'Volume'];$(k+'VolumeValue').textContent=state[k+'Volume']+'%'});
+ $('brightness').value=state.brightness;$('brightnessValue').textContent=state.brightness+'%';$('decorationsBtn').textContent=state.decorations?'Đang bật':'Đang tắt';
  $('stateText').textContent='Ánh sáng: '+state.lighting+' · Độ sáng: '+state.brightness+'% · Trang trí: '+(state.decorations?'Bật':'Tắt')+' · Nhạc: '+(state.musicEnabled?'Bật':'Tắt')+' · Giọng: '+(state.voiceEnabled?'Bật':'Tắt');
 }
-async function patch(p){try{const j=await api('/api/admin/state',{method:'PATCH',body:JSON.stringify(p)});state=j.state;render()}catch(e){$('connection').textContent=e.message}}
-function connect(){socket=io({auth:{role:'admin'}});socket.on('connect',()=>$('connection').textContent='Đã kết nối realtime với máy chủ');socket.on('connect_error',e=>$('connection').textContent='Mất kết nối: '+e.message);socket.on('admin:state',s=>{state=s;render()})}
-$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginMsg').textContent='Đang đăng nhập…';try{const j=await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('password').value})});state=j.state;$('loginView').classList.add('hidden');$('appView').classList.remove('hidden');render();connect()}catch(err){$('loginMsg').textContent=err.message}});
+async function patch(p){try{const j=await api('/api/admin/state',{method:'PATCH',body:JSON.stringify(p)});state=j.state;render()}catch(e){$('connection').textContent='Lỗi: '+e.message}}
+function connect(){socket=io({auth:{role:'admin'}});socket.on('connect',()=>$('connection').textContent='● Online');socket.on('connect_error',e=>$('connection').textContent='Lỗi kết nối: '+e.message);socket.on('admin:state',s=>{state=s;render()})}
+$('loginForm').addEventListener('submit',async e=>{e.preventDefault();$('loginMsg').textContent='Đang đăng nhập…';try{const j=await api('/api/admin/login',{method:'POST',body:JSON.stringify({password:$('password').value})});state=j.state;$('loginView').classList.add('hidden');$('appView').classList.remove('hidden');$('logoutBtn').classList.remove('hidden');render();connect()}catch(err){$('loginMsg').textContent=err.message}});
 $('logoutBtn').onclick=async()=>{try{await api('/api/admin/logout',{method:'POST'})}finally{location.reload()}};
+for(const key of ['music','voice','sfx']){$(key+'Toggle').onclick=()=>patch({[key+'Enabled']:!state[key+'Enabled']});$(key+'Volume').oninput=e=>$(key+'VolumeValue').textContent=e.target.value+'%';$(key+'Volume').onchange=e=>patch({[key+'Volume']:Number(e.target.value)})}
 document.querySelectorAll('[data-light]').forEach(b=>b.onclick=()=>patch({lighting:b.dataset.light}));
-$('brightness').onchange=e=>patch({brightness:Number(e.target.value)});
-$('decorationsBtn').onclick=()=>patch({decorations:!state.decorations});
-['music','voice','sfx'].forEach(k=>$(k+'EnabledBtn').onclick=()=>patch({[k+'Enabled']:!state[k+'Enabled']}));
-['music','voice','sfx'].forEach(k=>{
- $(k+'Volume').oninput=e=>$(k+'VolumeValue').textContent=e.target.value+'%';
- $(k+'Volume').onchange=e=>patch({[k+'Volume']:Number(e.target.value)});
-});
-(async()=>{try{const s=await api('/api/admin/state');state=s.state;$('loginView').classList.add('hidden');$('appView').classList.remove('hidden');render();connect()}catch(e){$('loginMsg').textContent=e.message}})();
+$('brightness').oninput=e=>$('brightnessValue').textContent=e.target.value+'%';$('brightness').onchange=e=>patch({brightness:Number(e.target.value)});$('decorationsBtn').onclick=()=>patch({decorations:!state.decorations});
+(async()=>{try{const status=await api('/api/admin/status');if(status.loginRequired){$('loginView').classList.remove('hidden');$('appView').classList.add('hidden');if(!status.enabled)$('loginMsg').textContent='Chủ hệ thống chưa cấu hình ADMIN_PASSWORD trên Render.';return;}const j=await api('/api/admin/state');state=j.state;$('loginView').classList.add('hidden');$('appView').classList.remove('hidden');$('logoutBtn').classList.add('hidden');render();connect()}catch(e){$('loginView').classList.remove('hidden');$('appView').classList.add('hidden');$('loginMsg').textContent=e.message}})();
 </script></body></html>
