@@ -2,56 +2,29 @@
 <html lang="vi">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <title>KON COFFEE - Kiot 10 Bãi Cháy Live Game</title>
 <script src="/socket.io/socket.io.js"></script>
 <script>
-/* KON recovery diagnostics: show runtime failures instead of a silent blank screen. */
-(function () {
-  function showKONError(message) {
-    function render() {
-      let panel = document.getElementById('kon-runtime-error');
-      if (!panel) {
-        panel = document.createElement('div');
-        panel.id = 'kon-runtime-error';
-        panel.style.cssText = 'position:fixed;z-index:999999;left:12px;right:12px;top:12px;padding:14px 16px;border:2px solid #ff7777;border-radius:12px;background:#281313;color:#fff;font:14px/1.45 system-ui,sans-serif;white-space:pre-wrap;overflow-wrap:anywhere;box-shadow:0 8px 28px #0009';
-        (document.body || document.documentElement).appendChild(panel);
-      }
-      panel.textContent = 'KON COFFEE LIVE gặp lỗi khi khởi chạy:\n' + String(message).slice(0, 1200) + '\nMở F12 → Console để xem chi tiết.';
-    }
-    if (document.body) render();
-    else document.addEventListener('DOMContentLoaded', render, { once: true });
-  }
-  window.addEventListener('error', function (event) {
-    showKONError(event.message || (event.target && (event.target.src || event.target.href)) || 'Không tải được tài nguyên.');
-  }, true);
-  window.addEventListener('unhandledrejection', function (event) {
-    const reason = event.reason;
-    showKONError(reason && reason.stack ? reason.stack : reason || 'Promise bị từ chối không được xử lý.');
-  });
-  window.addEventListener('DOMContentLoaded', function () {
-    if (typeof window.io !== 'function') {
-      showKONError('Không tải được Socket.IO tại /socket.io/socket.io.js. Kiểm tra máy chủ hoặc Network.');
-    }
-  }, { once: true });
-})();
+window.addEventListener('error',function(e){
+  const m=e.message||e.target?.src||e.target?.href||'Không tải được tài nguyên';
+  console.error('[KON BOOT]',m,e.error||'');
+});
+window.addEventListener('unhandledrejection',function(e){console.error('[KON PROMISE]',e.reason||e);});
 </script>
+
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@700;900&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
-  body {
-    width: 1080px; height: 1920px; overflow: hidden;
-    font-family: 'Nunito', sans-serif;
-    background:
-      linear-gradient(180deg, rgba(18,22,18,.18), rgba(16,25,16,.32)),
-      url('garden-bg.jpg') center center / cover no-repeat;
-    background-color: #263d2b;
-    position: relative; color: #fff;
-    transition: filter 2s ease;
+  html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; background: transparent; }
+  body { position: relative; font-family: 'Nunito', sans-serif; color: #fff; }
+  #gameStage {
+    position: absolute; width: 1080px; height: 1920px; left: 50%; top: 50%;
+    transform-origin: center center; overflow: hidden;
+    background: linear-gradient(180deg, rgba(18,22,18,.18), rgba(16,25,16,.32)),
+      url('assets/kon-garden.webp') center center / 100% 100% no-repeat;
+    background-color: #263d2b; color: #fff; transition: filter 2s ease;
   }
-  body.sunset-mode {
-    filter: sepia(0.25) saturate(1.4) hue-rotate(-10deg) brightness(0.95);
-  }
+  body.sunset-mode #gameStage { filter: sepia(0.25) saturate(1.4) hue-rotate(-10deg) brightness(0.95); }
   .ambient-overlay {
     position: absolute; inset: 0; pointer-events: none; z-index: 2;
     background: radial-gradient(circle at 50% 30%, rgba(255,190,100,0.12), rgba(15,10,5,0.45));
@@ -285,29 +258,6 @@
   .voice-control.secondary { font-size: 14px; padding: 9px 12px; }
   .voice-control.ready { border-color: #8fe3a1; color: #caffd3; }
   .voice-control.error { border-color: #ff9a9a; color: #ffd0d0; }
-  .lights-control {
-    border: 2px solid #ffd27a; border-radius: 24px;
-    background: linear-gradient(180deg,#60401f,#302014); color:#fff0c5;
-    padding:10px 15px; font:900 16px 'Nunito',sans-serif;
-    box-shadow:0 0 16px rgba(255,190,80,.32); cursor:pointer;
-  }
-  .lights-control.off { border-color:#91a6c8; color:#e0eaff; background:linear-gradient(180deg,#26364e,#111b2b); }
-  #gameStage.lights-off .ambient-overlay {
-    background:
-      radial-gradient(ellipse at 18% 44%, rgba(255,190,100,.30), transparent 27%),
-      radial-gradient(ellipse at 82% 44%, rgba(255,170,75,.24), transparent 25%),
-      radial-gradient(ellipse at 50% 82%, rgba(255,185,90,.18), transparent 35%),
-      linear-gradient(180deg,rgba(0,0,0,.72),rgba(3,8,18,.78));
-  }
-  #gameStage { filter: brightness(var(--kon-brightness, 1)); transition: filter 1.2s ease; }
-  #gameStage.decorations-off .ambient-overlay { background: transparent !important; }
-  #gameStage.lights-off .signboard {
-    box-shadow:0 0 18px rgba(255,190,90,.85),0 0 48px rgba(255,150,55,.38),inset 0 2px 8px rgba(255,220,160,.4);
-  }
-  #gameStage.lights-off .stat-box,
-  #gameStage.lights-off .panel-card {
-    box-shadow:0 0 18px rgba(255,170,75,.18), inset 0 0 16px rgba(255,185,95,.08);
-  }
   .voice-status {
     flex-basis: 100%; max-width: 520px; padding: 5px 10px; border-radius: 12px;
     color: #fff; background: rgba(20,15,10,.82); font-size: 13px;
@@ -348,28 +298,114 @@
     font-size: 24px; padding: 10px 28px; border-radius: 30px;
   }
 
-  /* Portrait canvas 9:16: keep the complete game visible in LIVE Studio's actual browser viewport. */
-  html, body { width:100%; height:100%; min-width:0; min-height:0; margin:0; padding:0; overflow:hidden; background:transparent; }
-  body { position:relative; }
-  #gameStage {
-    position:absolute; width:1080px; height:1920px; left:50%; top:50%;
-    transform-origin:center center; overflow:hidden;
+  /* Ánh sáng điều khiển từ Admin, giữ nguyên bố cục game 9:16 */
+  #gameStage { filter: brightness(var(--kon-brightness, 1)); transition: filter 1.2s ease; }
+  #gameStage.admin-lights-off .ambient-overlay {
     background:
-      linear-gradient(180deg, rgba(18,22,18,.18), rgba(16,25,16,.32)),
-      url('garden-bg.jpg') center center / cover no-repeat;
-    background-color:#263d2b;
+      radial-gradient(ellipse at 18% 44%, rgba(255,190,100,.30), transparent 27%),
+      radial-gradient(ellipse at 82% 44%, rgba(255,170,75,.24), transparent 25%),
+      radial-gradient(ellipse at 50% 82%, rgba(255,185,90,.18), transparent 35%),
+      linear-gradient(180deg,rgba(0,0,0,.72),rgba(3,8,18,.78));
   }
+  #gameStage.admin-sunset .ambient-overlay {
+    background: linear-gradient(180deg,rgba(255,105,60,.30),rgba(120,40,140,.24) 55%,rgba(20,10,30,.52));
+  }
+  #gameStage.admin-night .ambient-overlay {
+    background: radial-gradient(ellipse at 50% 50%,rgba(90,130,190,.14),rgba(2,7,20,.82));
+  }
+  #gameStage.admin-lights-off .signboard {
+    box-shadow:0 0 18px rgba(255,190,90,.85),0 0 48px rgba(255,150,55,.38),inset 0 2px 8px rgba(255,220,160,.4);
+  }
+
+
+  /* KON COFFEE illustrated garden v2.0 */
+  #gameStage {
+    background-image: url('assets/kon-garden.webp');
+    background-size: 100% 100%;
+    background-position: center;
+    background-repeat: no-repeat;
+  }
+  .ambient-overlay { background: linear-gradient(180deg,rgba(36,18,6,.05),rgba(36,18,6,.10)); }
+  .signboard { display:none !important; }
+  .top-header {
+    position:absolute; top:210px; left:28px; right:28px; width:auto;
+    padding:0; align-items:stretch; z-index:12;
+  }
+  .stats-row { grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-top:0; }
+  .stat-box { padding:7px 5px; border-width:2px; border-radius:15px; background:rgba(60,35,18,.88); }
+  .stat-box .label {font-size:15px; line-height:1.15;}
+  .stat-box .val {font-size:29px; margin-top:4px;}
+  .sub-panels {grid-template-columns:1.05fr .95fr; gap:10px; margin-top:10px;}
+  .panel-card {padding:9px 12px; border-width:2px; border-radius:15px; background:rgba(52,31,18,.90);}
+  .panel-title {font-size:17px; margin-bottom:5px;}
+  .menu-tags {font-size:15px; line-height:1.35;}
+  .menu-tags span {padding:2px 7px; margin:1px 2px 2px 0;}
+  .top-chill-list {gap:7px; margin-top:4px;}
+  .vip-slot {width:64px;}
+  .vip-slot img {width:34px;height:34px;border-width:2px;}
+  .vip-slot span {font-size:11px;max-width:62px;}
+  .kiot-zone {display:none !important;}
+  .garden-grid {
+    position:absolute; z-index:8; left:0; top:965px; width:100%; height:690px;
+    padding:8px 28px 6px; gap:2px 3px;
+    grid-template-columns:repeat(5,minmax(0,1fr));
+    grid-template-rows:repeat(5,minmax(0,1fr));
+    background:transparent;
+  }
+  .wood-table {
+    position:relative; width:100%; height:100%; aspect-ratio:auto;
+    border:0; border-radius:0; background:transparent; box-shadow:none;
+    display:flex; align-items:center; justify-content:center; transform:none !important;
+  }
+  .wood-table::before,.wood-table::after {display:none;}
+  .table-num {
+    position:absolute; z-index:1; left:50%; top:50%; transform:translate(-50%,-50%);
+    font-size:13px; color:#fff1d2; font-weight:900; padding:2px 7px;
+    border-radius:8px; background:rgba(55,31,15,.52); text-shadow:0 1px 3px #241306;
+  }
+  .seat {position:absolute; width:76px; height:92px; z-index:4; overflow:visible;}
+  .seat-0 {top:-4px;left:calc(50% - 38px);}
+  .seat-1 {right:-1px;top:calc(50% - 46px);}
+  .seat-2 {bottom:-3px;left:calc(50% - 38px);}
+  .seat-3 {left:-1px;top:calc(50% - 46px);}
+  .chibi-guest {position:relative;display:flex;flex-direction:column;align-items:center;max-width:84px;}
+  .guest-avatar-wrap {width:62px;height:76px;position:relative;}
+  .guest-avatar {
+    width:62px;height:76px;border:0;border-radius:0;object-fit:contain;
+    background:transparent;box-shadow:none;filter:drop-shadow(0 3px 2px rgba(28,12,3,.35));
+  }
+  .guest-name {
+    margin-top:-2px;font-size:12px;max-width:82px;padding:2px 6px;
+    background:rgba(43,24,12,.88);border:1px solid rgba(255,218,157,.45);
+  }
+  .speech-bubble {top:-22px;font-size:12px;padding:3px 7px;max-width:130px;overflow:hidden;text-overflow:ellipsis;z-index:9;}
+  .bottom-bar {left:32px;right:32px;bottom:20px;gap:9px;z-index:14;}
+  .chill-meter-wrap {height:42px;border-width:3px;width:72%;}
+  .chill-label {font-size:19px;}
+  .footer-cta {font-size:19px;padding:10px 16px;border-width:3px;border-radius:17px;}
+  .voice-panel {top:132px;right:24px;max-width:460px;gap:6px;z-index:30;}
+  .voice-control {padding:7px 10px;font-size:13px;border-width:1px;}
+  .voice-control.secondary {font-size:12px;padding:6px 9px;}
+  .voice-status {font-size:11px;max-width:320px;padding:4px 8px;background:rgba(45,26,14,.68);border-radius:10px;}
+  .audio-master {
+    border:2px solid #ffe0a0;border-radius:24px;background:rgba(43,27,15,.96);color:#ffe8bd;
+    padding:8px 12px;font:900 14px 'Nunito',sans-serif;box-shadow:0 4px 14px rgba(0,0,0,.45);cursor:pointer;
+  }
+  .audio-master.active {border-color:#8fe3a1;color:#d8ffde;}
+  #gameStage.admin-decorations-off .ambient-overlay {opacity:.2;}
+  @media (max-height: 700px) { .voice-panel {transform:scale(.7);transform-origin:top right;} }
+
 </style>
 </head>
 <body>
 <div id="gameStage">
 
-<div class="voice-panel" aria-label="Điều khiển giọng đọc">
-  <button id="lightsButton" class="lights-control" type="button" aria-pressed="false">💡 TẮT ĐÈN</button>
+<div class="voice-panel" aria-label="Điều khiển âm thanh">
+  <button id="musicButton" class="audio-master" type="button">🎵 BẬT NHẠC</button>
   <button id="voiceButton" class="voice-control" type="button">🔊 BẬT GIỌNG</button>
   <button id="voiceTestButton" class="voice-control secondary" type="button">🎙️ NGHE THỬ</button>
   <button id="voiceStopButton" class="voice-control secondary" type="button">🔇 TẮT GIỌNG</button>
-  <div id="voiceStatus" class="voice-status">Nhấn BẬT ÂM THANH để cho phép nhạc và giọng đọc</div>
+  <div id="voiceStatus" class="voice-status">Giọng đọc: chưa bật · Nhấn BẬT GIỌNG để bắt đầu</div>
 </div>
 
 <div class="ambient-overlay"></div>
@@ -491,215 +527,26 @@
     return null;
   }
 
-  // Giọng đọc Hoài My chạy qua chương trình cục bộ trên máy OBS.
-  // Điều khiển ánh sáng không gian KON COFFEE trong LIVE.
-  const lightsButton = document.getElementById('lightsButton');
-  const gameStage = document.getElementById('gameStage');
-  if (lightsButton && gameStage) {
-    lightsButton.addEventListener('click', () => {
-      const isOff = gameStage.classList.toggle('lights-off');
-      lightsButton.textContent = isOff ? '✨ BẬT ĐÈN' : '💡 TẮT ĐÈN';
-      lightsButton.classList.toggle('off', isOff);
-      lightsButton.setAttribute('aria-pressed', String(isOff));
-    });
-  }
-
-
-  // Apply Admin lighting settings to the LIVE canvas; state arrives from Render.
-  function applyAdminState(state) {
-    if (!state || !gameStage) return;
-    gameStage.classList.toggle('lights-off', state.lighting === 'lights-off' || state.lighting === 'night');
-    document.body.classList.toggle('sunset-mode', state.lighting === 'sunset');
-    gameStage.style.setProperty('--kon-brightness', String((Number(state.brightness) || 100) / 100));
-    gameStage.classList.toggle('decorations-off', state.decorations === false);
-    if (lightsButton) {
-      const off = state.lighting === 'lights-off' || state.lighting === 'night';
-      lightsButton.textContent = off ? '✨ BẬT ĐÈN' : '💡 TẮT ĐÈN';
-      lightsButton.classList.toggle('off', off);
-      lightsButton.setAttribute('aria-pressed', String(off));
-    }
-    syncAudioState(state);
-  }
-  if (typeof io !== 'undefined') {
-    const adminSyncSocket = io();
-    adminSyncSocket.on('admin:state', applyAdminState);
-  }
-
-  // Audio engine ported from AgencyLive: generated lo-fi, event SFX and Vietnamese browser TTS.
-  const KON_AUDIO = {
-    ctx: null, master: null, musicBus: null, sfxBus: null,
-    musicEnabled: true, musicVolume: 35, voiceEnabled: true, voiceVolume: 85,
-    sfxEnabled: true, sfxVolume: 60, timer: null, step: 0, speechDucking: false
-  };
+  // Hệ thống dẫn chương trình: chỉ chọn giọng tiếng Việt, tuyệt đối không đọc tiếng Anh thay thế.
   let vietnameseVoice = null;
   let speechQueue = [];
   let speechUnlocked = false;
   let speechIsPlaying = false;
   let speechEnabled = true;
-  let localVoiceMuted = false;
   const voiceButton = document.getElementById('voiceButton');
   const voiceTestButton = document.getElementById('voiceTestButton');
   const voiceStopButton = document.getElementById('voiceStopButton');
   const voiceStatus = document.getElementById('voiceStatus');
   const recentWelcome = new Map();
-  const BIG_GIFT_DIAMONDS = 30;
+  const BIG_GIFT_DIAMONDS = 30; // Mốc quà lớn, có thể điều chỉnh sau khi chạy thử.
 
   function setVoiceStatus(message, state = '') {
-    if (voiceStatus) voiceStatus.textContent = 'Âm thanh: ' + message;
+    if (voiceStatus) voiceStatus.textContent = `Giọng đọc: ${message}`;
     if (voiceButton) {
       voiceButton.classList.remove('ready', 'error');
       if (state) voiceButton.classList.add(state);
-      voiceButton.textContent = state === 'ready' ? '🔊 ÂM THANH ĐÃ MỞ' : '🔊 BẬT ÂM THANH';
+      voiceButton.textContent = state === 'ready' ? '🔊 GIỌNG ĐÃ BẬT' : '🔊 BẬT GIỌNG';
     }
-  }
-
-  function audioEnsure() {
-    if (KON_AUDIO.ctx) return KON_AUDIO.ctx;
-    const AudioCtx = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtx) {
-      setVoiceStatus('trình duyệt không hỗ trợ Web Audio', 'error');
-      return null;
-    }
-    const ctx = KON_AUDIO.ctx = new AudioCtx();
-    KON_AUDIO.master = ctx.createGain();
-    KON_AUDIO.master.gain.value = 1;
-    KON_AUDIO.master.connect(ctx.destination);
-    KON_AUDIO.musicBus = ctx.createGain();
-    KON_AUDIO.musicBus.gain.value = 0;
-    KON_AUDIO.musicBus.connect(KON_AUDIO.master);
-    KON_AUDIO.sfxBus = ctx.createGain();
-    KON_AUDIO.sfxBus.gain.value = 0;
-    KON_AUDIO.sfxBus.connect(KON_AUDIO.master);
-    audioUpdateGains();
-    return ctx;
-  }
-
-  function audioUpdateGains() {
-    if (!KON_AUDIO.ctx) return;
-    const now = KON_AUDIO.ctx.currentTime;
-    const music = KON_AUDIO.musicEnabled ? KON_AUDIO.musicVolume / 100 * (KON_AUDIO.speechDucking ? 0.35 : 1) : 0;
-    const sfx = KON_AUDIO.sfxEnabled ? KON_AUDIO.sfxVolume / 100 : 0;
-    KON_AUDIO.musicBus.gain.setTargetAtTime(music, now, 0.08);
-    KON_AUDIO.sfxBus.gain.setTargetAtTime(sfx, now, 0.04);
-  }
-
-  function audioUnlock() {
-    const ctx = audioEnsure();
-    if (!ctx) return;
-    speechUnlocked = true;
-    if (ctx.state === 'suspended') ctx.resume().catch(() => {});
-    audioUpdateGains();
-    if (KON_AUDIO.musicEnabled) audioStartMusic();
-  }
-
-  const KON_CHORDS = [[57,60,64,67],[53,57,60,64],[48,52,55,59],[55,59,62,65]];
-  function midiHz(note) { return 440 * Math.pow(2, (note - 69) / 12); }
-
-  function audioTone(frequency, when, duration, type, volume, bus) {
-    const ctx = KON_AUDIO.ctx;
-    if (!ctx || !bus) return;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = type || 'sine';
-    osc.frequency.value = frequency;
-    gain.gain.setValueAtTime(0, when);
-    gain.gain.linearRampToValueAtTime(volume, when + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0008, when + duration);
-    osc.connect(gain);
-    gain.connect(bus);
-    osc.start(when);
-    osc.stop(when + duration + 0.05);
-  }
-
-  function audioNoise(when, duration, volume, highpass, bus) {
-    const ctx = KON_AUDIO.ctx;
-    if (!ctx || !bus) return;
-    const buffer = ctx.createBuffer(1, Math.max(1, Math.floor(ctx.sampleRate * duration)), ctx.sampleRate);
-    const samples = buffer.getChannelData(0);
-    for (let i = 0; i < samples.length; i++) samples[i] = Math.random() * 2 - 1;
-    const source = ctx.createBufferSource();
-    const filter = ctx.createBiquadFilter();
-    const gain = ctx.createGain();
-    source.buffer = buffer;
-    filter.type = 'highpass';
-    filter.frequency.value = highpass || 5000;
-    gain.gain.setValueAtTime(volume, when);
-    gain.gain.exponentialRampToValueAtTime(0.001, when + duration);
-    source.connect(filter);
-    filter.connect(gain);
-    gain.connect(bus);
-    source.start(when);
-  }
-
-  function audioMusicTick() {
-    if (!KON_AUDIO.ctx || !KON_AUDIO.musicEnabled) return;
-    const ctx = KON_AUDIO.ctx;
-    const when = ctx.currentTime + 0.05;
-    const beat = 0.375;
-    const step = KON_AUDIO.step++;
-    const chord = KON_CHORDS[Math.floor(step / 8) % KON_CHORDS.length];
-    if (step % 8 === 0) chord.forEach(note => audioTone(midiHz(note), when, beat * 8, 'triangle', 0.05, KON_AUDIO.musicBus));
-    if (step % 8 === 0 || step % 8 === 5) {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.frequency.setValueAtTime(110, when);
-      osc.frequency.exponentialRampToValueAtTime(40, when + 0.18);
-      gain.gain.setValueAtTime(0.16, when);
-      gain.gain.exponentialRampToValueAtTime(0.001, when + 0.25);
-      osc.connect(gain);
-      gain.connect(KON_AUDIO.musicBus);
-      osc.start(when);
-      osc.stop(when + 0.3);
-    }
-    if (step % 8 === 4) audioNoise(when, 0.15, 0.07, 1500, KON_AUDIO.musicBus);
-    audioNoise(when + beat / 2, 0.04, 0.025, 8000, KON_AUDIO.musicBus);
-    if (Math.random() < 0.45) {
-      const note = chord[Math.floor(Math.random() * chord.length)] + 12;
-      audioTone(midiHz(note), when + (Math.random() < 0.5 ? 0 : beat / 2), beat * 1.5, 'sine', 0.035, KON_AUDIO.musicBus);
-    }
-  }
-
-  function audioStartMusic() {
-    if (!KON_AUDIO.ctx || !KON_AUDIO.musicEnabled || KON_AUDIO.timer) return;
-    audioMusicTick();
-    KON_AUDIO.timer = window.setInterval(audioMusicTick, 375);
-  }
-
-  function audioStopMusic() {
-    if (KON_AUDIO.timer) window.clearInterval(KON_AUDIO.timer);
-    KON_AUDIO.timer = null;
-  }
-
-  function audioSfx(kind) {
-    if (!KON_AUDIO.ctx || !KON_AUDIO.sfxEnabled || !KON_AUDIO.sfxBus) return;
-    const ctx = KON_AUDIO.ctx;
-    const when = ctx.currentTime + 0.01;
-    if (kind === 'join') {
-      audioTone(880, when, 0.15, 'sine', 0.14, KON_AUDIO.sfxBus);
-      audioTone(1320, when + 0.08, 0.2, 'sine', 0.11, KON_AUDIO.sfxBus);
-    } else if (kind === 'gift') {
-      [0,4,7,12].forEach((n,i) => audioTone(midiHz(72+n), when+i*0.06, 0.25, 'triangle', 0.12, KON_AUDIO.sfxBus));
-    } else if (kind === 'party') {
-      [0,4,7,12,16].forEach((n,i) => audioTone(midiHz(67+n), when+i*0.08, 0.4, 'square', 0.06, KON_AUDIO.sfxBus));
-      audioNoise(when, 0.5, 0.1, 3000, KON_AUDIO.sfxBus);
-    } else if (kind === 'win') {
-      [0,4,7,12,7,12].forEach((n,i) => audioTone(midiHz(72+n), when+i*0.1, 0.3, 'triangle', 0.13, KON_AUDIO.sfxBus));
-    }
-  }
-
-  function syncAudioState(state) {
-    if (!state) return;
-    KON_AUDIO.musicEnabled = state.musicEnabled !== undefined ? !!state.musicEnabled : KON_AUDIO.musicEnabled;
-    KON_AUDIO.musicVolume = Number.isFinite(Number(state.musicVolume)) ? Math.max(0, Math.min(100, Number(state.musicVolume))) : KON_AUDIO.musicVolume;
-    KON_AUDIO.voiceEnabled = state.voiceEnabled !== undefined ? !!state.voiceEnabled : KON_AUDIO.voiceEnabled;
-    KON_AUDIO.voiceVolume = Number.isFinite(Number(state.voiceVolume)) ? Math.max(0, Math.min(100, Number(state.voiceVolume))) : KON_AUDIO.voiceVolume;
-    KON_AUDIO.sfxEnabled = state.sfxEnabled !== undefined ? !!state.sfxEnabled : KON_AUDIO.sfxEnabled;
-    KON_AUDIO.sfxVolume = Number.isFinite(Number(state.sfxVolume)) ? Math.max(0, Math.min(100, Number(state.sfxVolume))) : KON_AUDIO.sfxVolume;
-    audioUpdateGains();
-    if (KON_AUDIO.musicEnabled && speechUnlocked) audioStartMusic();
-    else audioStopMusic();
-    if (!KON_AUDIO.voiceEnabled && 'speechSynthesis' in window) window.speechSynthesis.cancel();
-    else drainSpeechQueue();
   }
 
   function loadVietnameseVoice() {
@@ -708,77 +555,72 @@
       return null;
     }
     const voices = window.speechSynthesis.getVoices() || [];
-    const vi = voices.filter(v => /^vi([_-]|$)/i.test(v.lang));
-    vietnameseVoice = vi.find(v => /HoaiMy|Natural/i.test(v.name))
-      || vi.find(v => /Google/i.test(v.name))
-      || vi.find(v => /An\b|Microsoft/i.test(v.name))
-      || vi[0] || null;
-    if (vietnameseVoice) setVoiceStatus('sẵn sàng · ' + vietnameseVoice.name, speechUnlocked ? 'ready' : '');
-    else setVoiceStatus('chưa có giọng tiếng Việt trên máy chạy LIVE', 'error');
+    vietnameseVoice = voices.find(v => /^vi[-_]vn$/i.test(v.lang))
+      || voices.find(v => /^vi([_-]|$)/i.test(v.lang)) || null;
+    if (vietnameseVoice) {
+      setVoiceStatus(`sẵn sàng · ${vietnameseVoice.name} (${vietnameseVoice.lang})`, speechUnlocked ? 'ready' : '');
+    } else {
+      setVoiceStatus('chưa tìm thấy giọng tiếng Việt trên máy chạy OBS/Chrome', 'error');
+    }
     return vietnameseVoice;
   }
 
   function drainSpeechQueue() {
-    if (!speechEnabled || localVoiceMuted || !speechUnlocked || !KON_AUDIO.voiceEnabled ||
-        !vietnameseVoice || speechIsPlaying || !speechQueue.length) return;
+    if (!speechEnabled || !speechUnlocked || !vietnameseVoice || speechIsPlaying || !speechQueue.length) return;
     const message = speechQueue.shift();
     const utter = new SpeechSynthesisUtterance(message);
     utter.voice = vietnameseVoice;
     utter.lang = vietnameseVoice.lang || 'vi-VN';
-    utter.rate = 1.02;
-    utter.pitch = 1.02;
-    utter.volume = KON_AUDIO.voiceVolume / 100;
+    utter.rate = 0.94; // Nhịp dẫn tự nhiên, rõ chữ.
+    utter.pitch = 1.04;
+    utter.volume = Math.max(0, Math.min(1, Number(window.__KON_AUDIO_PREFS?.voiceVolume ?? 85) / 100));
     speechIsPlaying = true;
-    KON_AUDIO.speechDucking = true;
-    audioUpdateGains();
-    utter.onend = function () {
+    utter.onend = () => { speechIsPlaying = false; drainSpeechQueue(); };
+    utter.onerror = () => {
       speechIsPlaying = false;
-      KON_AUDIO.speechDucking = false;
-      audioUpdateGains();
-      drainSpeechQueue();
-    };
-    utter.onerror = function () {
-      speechIsPlaying = false;
-      KON_AUDIO.speechDucking = false;
-      audioUpdateGains();
-      setVoiceStatus('không phát được · kiểm tra đầu ra âm thanh LIVE Studio', 'error');
+      setVoiceStatus('không phát được · kiểm tra đầu ra âm thanh của OBS', 'error');
       drainSpeechQueue();
     };
     window.speechSynthesis.speak(utter);
   }
 
-  function speakVN(message, priority) {
-    if (!speechEnabled || localVoiceMuted || !KON_AUDIO.voiceEnabled || !('speechSynthesis' in window)) return;
+  function speakVN(message, priority = 'normal') {
+    if (!speechEnabled || window.__KON_AUDIO_PREFS?.voiceEnabled === false || !('speechSynthesis' in window)) return;
     if (!loadVietnameseVoice()) return;
-    const clean = String(message || '').trim();
-    if (!clean) return;
+    const cleanMessage = String(message || '').trim();
+    if (!cleanMessage) return;
+    // Sự kiện quan trọng được ưu tiên, tránh xếp hàng dài và đọc chồng.
     if (priority === 'high') {
       speechQueue = [];
-      window.speechSynthesis.cancel();
+      if (speechIsPlaying) window.speechSynthesis.cancel();
       speechIsPlaying = false;
-      KON_AUDIO.speechDucking = false;
-      speechQueue.unshift(clean);
+      speechQueue.unshift(cleanMessage);
     } else {
-      if (speechQueue.includes(clean)) return;
+      if (speechQueue.includes(cleanMessage)) return;
       if (speechQueue.length >= 5) speechQueue.shift();
-      speechQueue.push(clean);
+      speechQueue.push(cleanMessage);
     }
     drainSpeechQueue();
   }
 
+  window.__KON_GAME_SPEAK = speakVN;
+
   function enableVietnameseVoice() {
+    if (!('speechSynthesis' in window)) {
+      setVoiceStatus('trình duyệt không hỗ trợ giọng đọc', 'error');
+      return;
+    }
+    const voice = loadVietnameseVoice();
+    if (!voice) return;
     speechEnabled = true;
-    localVoiceMuted = false;
-    audioUnlock();
-    loadVietnameseVoice();
-    if (!vietnameseVoice) return;
-    setVoiceStatus('đã mở · ' + vietnameseVoice.name, 'ready');
+    speechUnlocked = true;
+    setVoiceStatus(`đã bật · ${voice.name}`, 'ready');
     speakVN('Xin chào cả nhà! KON COFFEE đã sẵn sàng đón khách. Mời cả nhà vào quán, chọn bàn và cùng chill nhé!', 'high');
   }
 
   function testVietnameseVoice() {
     if (!speechUnlocked) {
-      setVoiceStatus('hãy nhấn BẬT ÂM THANH trước khi nghe thử', 'error');
+      setVoiceStatus('hãy nhấn BẬT GIỌNG trước khi nghe thử', 'error');
       return;
     }
     speakVN('A lô, a lô! Đây là KON COFFEE Kiot 10 Bãi Cháy. Cảm ơn cả nhà đã ghé chơi. Chúc mọi người có một buổi tối thật chill!', 'high');
@@ -786,13 +628,10 @@
 
   function stopVietnameseVoice() {
     speechEnabled = false;
-    localVoiceMuted = true;
     speechQueue = [];
     if ('speechSynthesis' in window) window.speechSynthesis.cancel();
     speechIsPlaying = false;
-    KON_AUDIO.speechDucking = false;
-    audioUpdateGains();
-    setVoiceStatus('đã tắt giọng đọc tại màn hình LIVE');
+    setVoiceStatus('đã tắt tiếng đọc tự động');
   }
 
   if ('speechSynthesis' in window) {
@@ -803,16 +642,11 @@
   if (voiceTestButton) voiceTestButton.addEventListener('click', testVietnameseVoice);
   if (voiceStopButton) voiceStopButton.addEventListener('click', stopVietnameseVoice);
 
-  window.addEventListener('pointerdown', function () {
-    if (!speechUnlocked) return;
-    audioUnlock();
-  }, { passive: true });
   function announceGuest(data) {
     const id = String(data.uniqueId || data.userId || data.nickname || 'khach');
     const now = Date.now();
     if (now - (recentWelcome.get(id) || 0) < 45000) return;
     recentWelcome.set(id, now);
-    audioSfx('join');
     const name = String(data.nickname || 'một vị khách').slice(0, 32);
     speakVN(`Xin chào ${name}! Chào mừng bạn ghé KON COFFEE. Mời bạn chọn một bàn và gọi món yêu thích nhé!`);
   }
@@ -829,11 +663,15 @@
       return;
     }
     const u = seat.user;
+    const identity = String(u.uniqueId || u.nickname || 'guest');
+    const characterHash = Array.from(identity).reduce((sum, ch) => sum + ch.charCodeAt(0), 0);
+    const characterNumber = (characterHash % 6) + 1;
+    const characterPath = `/assets/characters/guest-${String(characterNumber).padStart(2, '0')}.png`;
     seat.el.innerHTML = `
       <div class="chibi-guest">
         ${u.bubble ? `<div class="speech-bubble">${escapeHTML(u.bubble)}</div>` : ''}
         <div class="guest-avatar-wrap">
-          <img class="guest-avatar" src="${escapeHTML(u.avatar)}" onerror="this.src='https://placehold.co/80x80/6e472b/fff?text=K'">
+          <img class="guest-avatar" src="${characterPath}" alt="Nhân vật KON COFFEE">
         </div>
         <div class="guest-name">${escapeHTML(u.nickname)}</div>
       </div>
@@ -969,7 +807,6 @@
     }
 
     const giftNameForVoice = String(data.giftName || 'món quà').slice(0, 40);
-    audioSfx('gift');
     const isRose = isRoseGift(data);
     if (!isRose && totalDiamonds >= BIG_GIFT_DIAMONDS) {
       speakVN(`Ôi tuyệt vời! ${topDonors[uniqueId].nickname} vừa gửi ${giftNameForVoice}. Cảm ơn bạn đã tiếp lửa cho KON COFFEE!`, 'high');
@@ -1025,7 +862,6 @@
       }
     });
 
-    audioSfx('party');
     speakVN(`${data.nickname || 'Gia chủ'} vừa tặng đủ mười Hoa Hồng và bao cả quán KON COFFEE! Cả sân vườn xin cảm ơn gia chủ!`, 'high');
     renderTopDonors();
 
@@ -1052,7 +888,6 @@
 
     if (chillPercent >= 100 && !document.body.classList.contains('sunset-mode')) {
       document.body.classList.add('sunset-mode');
-      audioSfx('win');
       document.getElementById('chillLabel').innerText = `🌅 HOÀNG HÔN BÃI CHÁY ĐÃ BẬT! Chụp màn hình nhận quà tại Kiot 10!`;
       speakVN('Bùng nổ rồi cả nhà ơi! Năng lượng Chill đã đạt một trăm phần trăm! Hoàng hôn Bãi Cháy chính thức lên đèn tại KON COFFEE!', 'high');
       setTimeout(() => {
@@ -1090,6 +925,22 @@
   const O2O_REMINDER = 'Bạn nào đang có nhân vật tại sân vườn ảo, hãy chụp màn hình và ghé KON COFFEE, Kiot 10 Bồ Nâu, Bãi Cháy. Đưa màn hình cho Barista để nhận topping miễn phí hoặc một đĩa hướng dương nhé!';
   setInterval(() => { if (speechUnlocked) speakVN(O2O_REMINDER); }, 10 * 60 * 1000);
 
+
+  // Nhận thiết lập ánh sáng từ tab Admin qua máy chủ Render.
+  (function connectAdminLighting() {
+    if (typeof io !== 'function') return;
+    const adminSyncSocket = io();
+    adminSyncSocket.on('admin:state', function(state) {
+      const stage = document.getElementById('gameStage');
+      if (!stage || !state) return;
+      stage.classList.toggle('admin-lights-off', state.lighting === 'lights-off');
+      stage.classList.toggle('admin-sunset', state.lighting === 'sunset');
+      stage.classList.toggle('admin-night', state.lighting === 'night');
+      stage.style.setProperty('--kon-brightness', String((Number(state.brightness) || 100) / 100));
+      stage.classList.toggle('admin-decorations-off', state.decorations === false);
+    });
+  })();
+
   if (typeof io !== 'undefined') {
     const socket = io();
     socket.on('tiktok_chat', data => handleCustomerOrder(data));
@@ -1124,21 +975,26 @@
   });
 </script>
 </div>
+
 <script>
-(function(){
-  const stage=document.getElementById("gameStage");
-  if(!stage) return;
-  function fitPortraitStage(){
-    const w=document.documentElement.clientWidth || window.innerWidth;
-    const h=document.documentElement.clientHeight || window.innerHeight;
-    const scale=Math.min(w/1080,h/1920);
-    stage.style.transform="translate(-50%, -50%) scale("+scale+")";
-  }
-  fitPortraitStage();
-  window.addEventListener("resize",fitPortraitStage,{passive:true});
-  if(window.visualViewport) window.visualViewport.addEventListener("resize",fitPortraitStage,{passive:true});
-  if(window.ResizeObserver){ new ResizeObserver(fitPortraitStage).observe(document.documentElement); }
-})();
-</script>
-</body>
-</html>
+/* KON COFFEE audio controller: original generated lo-fi bed, SFX, and Admin-synced levels. */
+(function () {
+  const prefs = window.__KON_AUDIO_PREFS = {
+    musicEnabled: true, musicVolume: 35,
+    voiceEnabled: true, voiceVolume: 85,
+    sfxEnabled: true, sfxVolume: 60
+  };
+  const musicButton = document.getElementById('musicButton');
+  let ctx = null, master = null, musicBus = null, sfxBus = null;
+  let unlocked = false, musicOn = false, step = 0, scheduler = null;
+  const chords = [
+    [60,64,67,71], [57,60,64,67], [53,57,60,64], [55,59,62,65]
+  ];
+  const hz = n => 440 * Math.pow(2, (n - 69) / 12);
+  function ensureAudio() {
+    if (ctx) return true;
+    const Ctx = window.AudioContext || window.webkitAudioContext;
+    if (!Ctx) return false;
+    ctx = new Ctx();
+    master = ctx.createGain(); master.gain.value = 0.9; master.connect(ctx.destination);
+    musicBus = ctx.createGain(); musicBus.gain.value = prefs.musicVolume / 100; musicBus.connect(master);

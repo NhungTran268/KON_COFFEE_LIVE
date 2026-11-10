@@ -1,43 +1,38 @@
-# KON COFFEE LIVE · v1.4.0
+# KON COFFEE LIVE v2.0.2 · CHIBI + AUDIO + ADMIN
 
-Game TikTok LIVE dạng Browser Source 1080×1920, sân vườn cafe 25 bàn / 100 chỗ.
+Bản triển khai thử nghiệm độc lập, dùng Node.js 20+, Express, Socket.IO và tiktok-live-connector 2.5.0.
 
-## Luật chơi được giữ nguyên
-- 25 bàn × 4 ghế = 100 khách.
-- Bình luận gọi món hoặc chọn bàn 1–25 để vào quán.
-- Hoa Hồng được cộng dồn theo từng người gửi trong phiên LIVE; đủ 10 bông từ cùng một người sẽ kích hoạt **BAO CẢ QUÁN**.
-- Thanh CHILL đạt 100% sẽ bật Hoàng Hôn Bãi Cháy.
-- Giọng đọc chỉ dùng voice `vi-VN` / `vi`; không tự fallback sang tiếng Anh.
+## Chạy trên máy tính
+1. Cài Node.js 20 trở lên.
+2. Mở thư mục này, chạy `npm install`.
+3. Sao chép `.env.example` thành `.env`.
+4. Mở `.env` và đặt `ADMIN_PASSWORD=123456789`; đặt `ADMIN_SESSION_SECRET` thành chuỗi dài riêng.
+5. Chạy `npm start`, mở `http://localhost:3000` và `http://localhost:3000/admin`.
 
-## Chạy local
-1. Cài Node.js 20 LTS.
-2. Mở terminal trong thư mục dự án và chạy `npm install`.
-3. Tạo `.env` từ `.env.example` nếu cần đổi tài khoản TikTok.
-4. Chạy `npm start`, mở `http://localhost:3000`.
-5. OBS / TikTok Live Studio → Browser Source → URL `http://localhost:3000`, kích thước 1080×1920.
-6. Nhấn **BẬT GIỌNG VIỆT** một lần trong Browser Source (hoặc phím `V`) để cho phép trình duyệt phát tiếng. Voice dùng thư viện giọng có sẵn trên máy chạy OBS, không phải voice server.
+Có thể chạy nhanh bằng `START-KON-COFFEE.bat` trên Windows.
 
-## Kiểm tra nhanh
-- `npm run check`: kiểm tra cú pháp server và JavaScript trong trang.
-- Phím `1`: thêm khách test.
-- Phím `2`: test combo 10 Hoa Hồng.
-- Phím `3`: đẩy CHILL lên 100%.
-- Phím `V`: bật / thử giọng Việt.
-- `GET /healthz`: trạng thái server và kết nối TikTok.
+## Render (chỉ bản TEST)
+- Build: `npm install`
+- Start: `npm start`
+- Health check: `/healthz`
+- Environment: `NODE_ENV=production`, `TIKTOK_USERNAME=kon.coffee`, `ADMIN_PASSWORD=123456789`, `ADMIN_SESSION_SECRET` là chuỗi bí mật riêng.
+- `render.yaml` được đặt tên service `kon-coffee-live-test`, không phải service LIVE chính.
 
-## Deploy bằng GitHub + Render
-GitHub lưu mã nguồn; Render chạy Node.js, Socket.IO và kết nối TikTok. Không dùng GitHub Pages cho backend Node.
+Không tải `.env` lên GitHub. Không dùng mật khẩu thử nghiệm này cho tài khoản hoặc dữ liệu nhạy cảm.
 
-1. Đưa các file trong thư mục này lên repo GitHub, giữ `index.html`, `server.js`, `package.json`, `garden-bg.jpg` ở thư mục gốc.
-2. Render → New → Blueprint → chọn repo `KON_COFFEE_LIVE`; Render đọc `render.yaml`.
-3. Xác nhận tạo Web Service. Blueprint hiện đặt `plan: starter` và region Singapore để tránh free service ngủ trong lúc LIVE. Kiểm tra giá hiển thị trong Render trước khi xác nhận.
-4. Sau deploy, mở URL Render `/healthz`. Nếu `ok: true`, server đã chạy; `tiktokConnected: true` mới xác nhận connector đang bắt được phiên LIVE.
-5. Trong OBS Browser Source dùng URL gốc Render, ví dụ `https://ten-dich-vu.onrender.com`, kích thước 1080×1920.
-6. Mỗi lần push commit lên nhánh đã kết nối, Render tự deploy bản mới.
+## Nội dung
+- `index.html`: giao diện game minh họa, 25 bàn và 100 chỗ, sự kiện khách/bình luận/quà.
+- `admin.html`: quản trị âm thanh, giọng đọc, hiệu ứng, ánh sáng, thông báo.
+- `server.js`: server, API Admin, Socket.IO, TikTok LIVE connector.
+- `assets/kon-garden.webp`: nền minh họa KON COFFEE.
+- `assets/characters/`: 6 nhân vật chibi PNG.
+- `assets/audio/`: nhạc Lo-fi và 3 hiệu ứng WAV.
+- `.github/workflows/validate.yml`, `scripts/`: kiểm tra cú pháp và tài nguyên.
 
-## Lưu ý quan trọng
-- Repository hiện có thể đang Public. Chuyển sang Private trước khi đưa code lên nếu muốn giữ mã nguồn riêng.
-- Không đưa mật khẩu TikTok, cookie, token hay file `.env` lên GitHub.
-- TikTok connector là thư viện bên thứ ba, không phải API LIVE chính thức; TikTok có thể thay đổi giao thức. Cần test trên phiên LIVE thật trước khi dùng chính thức.
-- Kiểm tra gift ID / gift name thực tế của Hoa Hồng ở phiên LIVE đầu tiên; nếu catalog theo vùng thay đổi thì cập nhật `roseGiftIds` trong `index.html`.
-- `tiktokConnected: false` không nhất thiết là lỗi deploy; kênh phải đang LIVE công khai và connector phải truy cập được.
+Ảnh mockup trong thư mục `DESIGN_REFERENCE` của gói ZIP bên ngoài là ảnh tham khảo bố cục, không phải ảnh chụp trạng thái website đã deploy.
+
+
+## Cập nhật 2.0.2
+- Giao diện minh họa KON COFFEE và 6 nhân vật chibi được phục vụ từ thư mục assets.
+- Nhạc Lo-fi và hiệu ứng được tổng hợp trực tiếp bằng Web Audio trong trình duyệt; không phụ thuộc tệp nhạc ngoài. Gói nền và 6 nhân vật được giải nén tự động khi khởi động.
+- Admin hỗ trợ chế độ không mật khẩu khi đặt `ADMIN_AUTH_DISABLED=true`; không bật chế độ này trên dịch vụ công khai không được bảo vệ.
