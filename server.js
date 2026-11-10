@@ -120,6 +120,7 @@ io.on('connection', socket => {
 // ===== KON ADMIN: private login + real-time controls =====
 const crypto = require('crypto');
 app.use(express.json({ limit: '32kb' }));
+const ADMIN_AUTH_DISABLED = process.env.ADMIN_AUTH_DISABLED === 'true';
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
 const ADMIN_SESSION_SECRET = process.env.ADMIN_SESSION_SECRET || ADMIN_PASSWORD;
 const ADMIN_COOKIE = 'kon_admin_session';
@@ -141,18 +142,21 @@ function getCookie(req, name) {
   return item ? decodeURIComponent(item.slice(name.length + 1)) : '';
 }
 function isAdminRequest(req) {
+  if (ADMIN_AUTH_DISABLED) return true;
   if (!ADMIN_SESSION_SECRET) return false;
   const token = getCookie(req, ADMIN_COOKIE);
   const record = adminSessions.get(token);
   return !!(record && record.expiresAt > Date.now() && safeEqual(record.signature, signAdminToken(token)));
 }
 function requireAdmin(req, res, next) {
+  if (ADMIN_AUTH_DISABLED) return next();
   if (!ADMIN_PASSWORD) return res.status(503).json({ ok:false, error:'Chưa cấu hình ADMIN_PASSWORD trên Render.' });
   if (!isAdminRequest(req)) return res.status(401).json({ ok:false, error:'Vui lòng đăng nhập Admin.' });
   next();
 }
-app.get('/api/admin/status', (_req, res) => res.json({ enabled: !!ADMIN_PASSWORD }));
+app.get('/api/admin/status', (_req, res) => res.json({ enabled: ADMIN_AUTH_DISABLED || !!ADMIN_PASSWORD, loginRequired: !ADMIN_AUTH_DISABLED }));
 app.post('/api/admin/login', (req, res) => {
+  if (ADMIN_AUTH_DISABLED) return res.json({ ok: true, state: adminState });
   if (!ADMIN_PASSWORD) return res.status(503).json({ ok:false, error:'Chủ hệ thống cần đặt biến ADMIN_PASSWORD trên Render.' });
   const supplied = String(req.body?.password || '');
   if (!safeEqual(supplied, ADMIN_PASSWORD)) return res.status(401).json({ ok:false, error:'Mật khẩu không đúng.' });
@@ -202,6 +206,7 @@ app.patch('/api/admin/state', requireAdmin, (req, res) => {
 });
 io.use((socket, next) => {
   if (socket.handshake.auth?.role !== 'admin') return next();
+  if (ADMIN_AUTH_DISABLED) return next();
   const raw = socket.handshake.headers.cookie || '';
   const item = raw.split(';').map(v=>v.trim()).find(v=>v.startsWith(ADMIN_COOKIE+'='));
   const token = item ? decodeURIComponent(item.slice(ADMIN_COOKIE.length+1)) : '';
